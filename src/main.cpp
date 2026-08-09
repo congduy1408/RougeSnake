@@ -13,7 +13,6 @@ void AlignString(char *text, int fontSize, int posX, int posY, Color color) {
 
 int main() 
 {
-    GameScreen currentScreen = MAIN_MENU;
     InitWindow(screenWidth, screenHeight, "My first RAYLIB program!");
     SetTargetFPS(60);
 
