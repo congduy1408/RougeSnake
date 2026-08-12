@@ -1,16 +1,17 @@
 #pragma once
 #include "common.h"
-#include "include/gamestate.h"
+#include "include/gameobject.h"
 
-class food {
+class Food: public GameObject {
     public:
-        Vector2 position;
         double available_time = 10;
-        std::vector<Vector2> checksnake;
-        food();
-        void SetSnake(std::vector<Vector2> _snake);
-        bool CollideSnakePosition();
-        void SetFoodPosition();
+        Food(Vector2 position) :
+        GameObject(position) {};
+        Food() {};
+        // void SetSnake(std::vector<Vector2> _snake);
+        bool CollideSnakePosition(Snake& snake);
+        void SetFoodPosition(Snake& snake);
         void Draw();
         void Update();
+        void OnSnakeEnter(Snake& snake) override;
 };

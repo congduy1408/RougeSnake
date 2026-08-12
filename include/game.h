@@ -6,11 +6,12 @@
 class game {
     public:
         gamestate state;
-        snake spawn_snake;
-        food spawn_food;
+        Snake spawn_snake;
+        Food spawn_food;
         double last_get_time;
     void InitGameObject();
     void Draw();
     void Update();
     bool FixUpdate(float interval);
+    bool SnakeCollision(Snake& snake, GameObject object);
 };

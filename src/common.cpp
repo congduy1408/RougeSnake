@@ -1,6 +1,6 @@
 #include "include/common.h"
 
-int cellsize = 20;
+int cellsize = 16;
 int cellcount_width = 40;
 int cellcount_height = 30;
 int screenWidth = cellsize * cellcount_width;

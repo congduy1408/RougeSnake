@@ -2,15 +2,15 @@
 
 void game::InitGameObject() {
     state = gamestate();
-    spawn_snake = snake();
-    spawn_food = food();
-    spawn_food.SetSnake(spawn_snake.body);
-    spawn_food.SetFoodPosition();
+    state.currentScreen = MAIN_MENU;
+    spawn_snake = Snake();
+    spawn_food = Food();
+    spawn_food.SetFoodPosition(spawn_snake);
 }
 void game::Draw() {
     switch (state.currentScreen) {
         case MAIN_MENU: {
-            // AlignString("Press Enter to start game", screenWidth/2 ,screenHeight/2, 20, darkGreen);
+            DrawText("Press Enter to start game", screenWidth/2 ,screenHeight/2, 20, darkGreen);
         } break;
         case STAGE: {
             spawn_snake.Draw();
@@ -37,27 +37,39 @@ void game::Update() {
             }
         } break;
         case STAGE: {
-            
+            if (FixUpdate(fix_update_time)) {
+                spawn_snake.Update();
+                spawn_food.Update();
+                if (SnakeCollision(spawn_snake, spawn_food)) {
+                    spawn_food.OnSnakeEnter(spawn_snake);
+                }
+            }
         } break;
         case GAMEOVER: {
             if (IsKeyPressed(KEY_ENTER))
             {
-                state.currentScreen = STAGE;
+                
                 InitGameObject();
+                state.currentScreen = STAGE;
             }
         } break;
         default: break;
     }
-    if (FixUpdate(fix_update_time)) {
-        spawn_snake.Update(state, spawn_food);
-        spawn_food.Update();
-    }
+
 }
 
 bool game::FixUpdate(float interval) {
     double current_get_time = GetTime();
     if (current_get_time - last_get_time >= interval) {
         last_get_time = current_get_time;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool game::SnakeCollision(Snake& snake, GameObject object) {
+    if (snake.body.front().position == object.GetPosition()) {
         return true;
     } else {
         return false;
