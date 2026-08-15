@@ -6,9 +6,9 @@ Snake::Snake()
     snake_move = dir_right;
     body.reserve(300);
     turn_point_list.reserve(300);
-    body.push_back(snake_body{Vector2{10,15}, dir_right});
-    body.push_back(snake_body{Vector2{9,15}, dir_right});
-    body.push_back(snake_body{Vector2{8,15}, dir_right});
+    body.push_back(snake_body{Vector2{10,15}, dir_right, dir_right, false});
+    body.push_back(snake_body{Vector2{9,15}, dir_right, dir_right, false});
+    body.push_back(snake_body{Vector2{8,15}, dir_right, dir_right, false});
     snake_sprite = LoadTexture("sprite/snake.png");
 
 }
@@ -65,14 +65,30 @@ void Snake::Draw() {
         else if (i==body.size()-1) {
             Rectangle head_sprite = Rectangle{0,0, 16,16};
             DrawSnakePart(head_sprite, draw_pos, body[i].cur_dir);
+        } else if (body[i].is_turn) {
+            Rectangle head_sprite = Rectangle{32,16, 16,16};
+            if ((body[i].pre_dir == dir_right && body[i].cur_dir == dir_down) ||
+                (body[i].pre_dir == dir_up && body[i].cur_dir == dir_left)) {
+                    DrawSnakePart(head_sprite, draw_pos, dir_right);
+            } else if ((body[i].pre_dir == dir_right && body[i].cur_dir == dir_up) ||
+                (body[i].pre_dir == dir_down && body[i].cur_dir == dir_left)) {
+                    DrawSnakePart(head_sprite, draw_pos, dir_down);
+            } else if ((body[i].pre_dir == dir_down && body[i].cur_dir == dir_right) ||
+                (body[i].pre_dir == dir_left && body[i].cur_dir == dir_up)) {
+                    DrawSnakePart(head_sprite, draw_pos, dir_left);
+            } else if ((body[i].pre_dir == dir_left && body[i].cur_dir == dir_down) ||
+                (body[i].pre_dir == dir_up && body[i].cur_dir == dir_right)) {
+                    DrawSnakePart(head_sprite, draw_pos, dir_up);
+                }
         }
         // draw body
         else {
             Rectangle head_sprite = Rectangle{16,0, 16,16};
             DrawSnakePart(head_sprite, draw_pos, body[i].cur_dir);
         }
-        // draw turn body    
-    }     
+        // draw turn body  
+        std::cout << "body turn[" << i<< "] " << body[i].is_turn << std::endl;
+    }   
 }
 
 void Snake::TailCut(int cut_index) {
@@ -83,19 +99,19 @@ void Snake::TailCut(int cut_index) {
 
 void Snake::ReadInput() {
     bool snake_turn = false;
-    if (IsKeyDown(KEY_RIGHT) && snake_move != dir_left){
+    if (IsKeyDown(KEY_RIGHT) && snake_move != dir_left && snake_move != dir_right){
         snake_move = dir_right;
         snake_turn = true;
     }
-    else if (IsKeyDown(KEY_LEFT) && snake_move != dir_right) {
+    else if (IsKeyDown(KEY_LEFT) && snake_move != dir_right && snake_move != dir_left) {
         snake_move = dir_left;
         snake_turn = true;
     }
-    else if (IsKeyDown(KEY_UP) && snake_move != dir_down){
+    else if (IsKeyDown(KEY_UP) && snake_move != dir_down && snake_move != dir_up){
         snake_move = dir_up;
         snake_turn = true;
     }
-    else if (IsKeyDown(KEY_DOWN) && snake_move != dir_up) {
+    else if (IsKeyDown(KEY_DOWN) && snake_move != dir_up && snake_move != dir_down) {
         snake_move = dir_down;
         snake_turn = true;
     }
@@ -103,12 +119,16 @@ void Snake::ReadInput() {
     // the record will contain: change position + new direction
     if (snake_turn) {
         turn_point_list.push_back({body.front().position, snake_move});
+        body.front().pre_dir = body.front().cur_dir;
+        body.front().cur_dir = snake_move;
+        body.front().is_turn = true;
     }
 }
 
 void Snake::MoveSnake() {
     body.pop_back();
     body.insert(body.begin(), body.front());
+    body.front().is_turn = false;
     switch (snake_move) {
         case dir_up:
             body.front().position.y -= 1;

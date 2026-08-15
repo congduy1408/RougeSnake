@@ -14,15 +14,66 @@ bool Food::CollideSnakePosition(Snake& snake) {
     return false;
 } 
 
+bool Food::CollideWallPosition(const std::vector<bool>& wall_cells) {
+    int x = (int)position.x;
+    int y = (int)position.y;
+    if (x < 0 || x >= cellcount_width || y < 0 || y >= cellcount_height) {
+        return true;
+    }
+    return wall_cells[y * cellcount_width + x];
+}
+
+bool Food::IsInsideBoundary(Vector2 pos) {
+    int food_x = (int)position.x;
+    int food_y = (int)position.y;
+    int pos_x = (int)pos.x;
+    int pos_y = (int)pos.y;
+
+    return pos_x >= food_x - 1 && pos_x <= food_x + 1 &&
+           pos_y >= food_y - 1 && pos_y <= food_y + 1;
+}
+
+bool Food::UpdateBoundaryScore(Vector2 snake_pos) {
+    bool is_inside_boundary = IsInsideBoundary(snake_pos);
+    if (snake_inside_boundary && !is_inside_boundary && score > 1) {
+        score--;
+        snake_inside_boundary = is_inside_boundary;
+        return true;
+    }
+    snake_inside_boundary = is_inside_boundary;
+    return false;
+}
+
+int Food::GetScore() {
+    return score;
+}
+
+void Food::ResetScore() {
+    score = max_score;
+    snake_inside_boundary = false;
+}
+
 void Food::SetFoodPosition(Snake& snake) {
     position = RandomPosition();
     while(CollideSnakePosition(snake)) {
         position = RandomPosition();
     }
+    ResetScore();
+}
+
+void Food::SetFoodPosition(Snake& snake, const std::vector<bool>& wall_cells) {
+    position = RandomPosition();
+    while(CollideSnakePosition(snake) || CollideWallPosition(wall_cells)) {
+        position = RandomPosition();
+    }
+    ResetScore();
 }
 
 void Food::Draw() {
+    DrawRectangleLines((position.x - 1) * cellsize, (position.y - 1) * cellsize, cellsize * 3, cellsize * 3, darkGreen);
     DrawRectangle(position.x * cellsize, position.y * cellsize, cellsize, cellsize, darkGreen);
+    std::string score_text = std::to_string(score);
+    DrawText(score_text.c_str(), position.x * cellsize, position.y * cellsize - cellsize, 14, darkGreen);
 }
 
 void Food::OnSnakeEnter(Snake& snake) {
@@ -31,4 +82,3 @@ void Food::OnSnakeEnter(Snake& snake) {
 }
 
 void Food::Update() {}
-

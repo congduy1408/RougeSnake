@@ -6,6 +6,8 @@
 struct snake_body {
     Vector2 position;
     direction cur_dir;
+    direction pre_dir;
+    bool is_turn=false;
 };
 
 enum snakestate {
