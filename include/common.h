@@ -3,7 +3,7 @@
 #include <raymath.h>
 #include <vector>
 #include <utility>
-#include <iostream>
+//#include <iostream>
 #include <string>
 
 
@@ -14,6 +14,7 @@ extern int cellcount_height;
 extern int screenWidth;
 extern int screenHeight;
 extern float fix_update_time;
+// extern float sprite_update_time;
 
 enum direction {
     dir_up,
@@ -23,3 +24,4 @@ enum direction {
 };
 
 Vector2 RandomPosition();
+bool FixFrameUpdate(int fps, int &frame_counter);

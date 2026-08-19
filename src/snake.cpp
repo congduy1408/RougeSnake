@@ -44,6 +44,10 @@ void Snake::DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction di
 }
 
 void Snake::Draw() {
+    // if (FixFrameUpdate(fps, frame_counter)) {
+    //     flip_frame = flip_frame * -1;
+    // }
+
     for (unsigned int i=0; i<body.size(); i++) {
         // draw head
         // Rectangle bodypart = Rectangle{body[i].x * cellsize, body[i].y * cellsize, cellsize, cellsize};
@@ -57,15 +61,15 @@ void Snake::Draw() {
             16
         };
         if (i==0) {
-            Rectangle head_sprite = Rectangle{32,0, 16,16};
-            // DrawTextureRec(snake_sprite, head_sprite, Vector2{body[i].position.x * cellsize, body[i].position.y * cellsize}, WHITE);  // Draw part of the texture
+            Rectangle head_sprite = Rectangle{32,0, 16,16 * flip_frame};
             DrawSnakePart(head_sprite, draw_pos, body[i].cur_dir);
         }
         // draw tail
         else if (i==body.size()-1) {
-            Rectangle head_sprite = Rectangle{0,0, 16,16};
-            DrawSnakePart(head_sprite, draw_pos, body[i].cur_dir);
-        } else if (body[i].is_turn) {
+            Rectangle tail_sprite = Rectangle{0,0, 16,16 * flip_frame};
+            DrawSnakePart(tail_sprite, draw_pos, body[i].cur_dir);
+        }
+        else if (body[i].is_turn) {
             Rectangle head_sprite = Rectangle{32,16, 16,16};
             if ((body[i].pre_dir == dir_right && body[i].cur_dir == dir_down) ||
                 (body[i].pre_dir == dir_up && body[i].cur_dir == dir_left)) {
@@ -83,11 +87,11 @@ void Snake::Draw() {
         }
         // draw body
         else {
-            Rectangle head_sprite = Rectangle{16,0, 16,16};
-            DrawSnakePart(head_sprite, draw_pos, body[i].cur_dir);
+            Rectangle body_sprite = Rectangle{16,0, 16,16 * flip_frame};
+            DrawSnakePart(body_sprite, draw_pos, body[i].cur_dir);
         }
         // draw turn body  
-        std::cout << "body turn[" << i<< "] " << body[i].is_turn << std::endl;
+        // std::cout << "body turn[" << i<< "] " << body[i].is_turn << std::endl;
     }   
 }
 
