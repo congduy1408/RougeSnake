@@ -40,7 +40,7 @@ void game::Draw() {
 void game::Update() {
     switch (state.currentScreen) {
         case MAIN_MENU: {
-            if (IsKeyPressed(KEY_ENTER))
+            if (IsKeyPressed(KEY_ENTER)  || IsKeyPressed(KEY_KP_ENTER))
             {
                 state.currentScreen = STAGE;
             }
@@ -68,7 +68,7 @@ void game::Update() {
             }
         } break;
         case GAMEOVER: {
-            if (IsKeyPressed(KEY_ENTER))
+            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
             {
                 
                 InitGameObject();

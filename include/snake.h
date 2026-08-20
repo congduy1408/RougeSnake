@@ -34,7 +34,7 @@ class Snake {
 
         void Update();
     private:
-        int fps = 60;
+        int fps = 3;
         int frame_counter = 0;
         int flip_frame = 1;
         void DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction dir);

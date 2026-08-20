@@ -10,6 +10,7 @@ Snake::Snake()
     body.push_back(snake_body{Vector2{9,15}, dir_right, dir_right, false});
     body.push_back(snake_body{Vector2{8,15}, dir_right, dir_right, false});
     snake_sprite = LoadTexture("sprite/snake.png");
+    SetTextureFilter(snake_sprite, TEXTURE_FILTER_POINT);
 
 }
 
@@ -44,9 +45,13 @@ void Snake::DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction di
 }
 
 void Snake::Draw() {
-    // if (FixFrameUpdate(fps, frame_counter)) {
-    //     flip_frame = flip_frame * -1;
-    // }
+    if (FixFrameUpdate(fps, frame_counter)) {
+        flip_frame = flip_frame * -1;
+    }
+
+    auto MakeMirroredSprite = [this](float x, float y) {
+        return Rectangle{x, y, 16.0f, 16.0f * flip_frame};
+    };
 
     for (unsigned int i=0; i<body.size(); i++) {
         // draw head
@@ -61,16 +66,17 @@ void Snake::Draw() {
             16
         };
         if (i==0) {
-            Rectangle head_sprite = Rectangle{32,0, 16,16 * flip_frame};
+            //Rectangle head_sprite = Rectangle{32.0f, 0.0f, 16.0f, 16.0f};
+            Rectangle head_sprite = MakeMirroredSprite(32.0f, 0.0f);
             DrawSnakePart(head_sprite, draw_pos, body[i].cur_dir);
         }
         // draw tail
         else if (i==body.size()-1) {
-            Rectangle tail_sprite = Rectangle{0,0, 16,16 * flip_frame};
+            Rectangle tail_sprite = MakeMirroredSprite(0.0f, 0.0f);
             DrawSnakePart(tail_sprite, draw_pos, body[i].cur_dir);
         }
         else if (body[i].is_turn) {
-            Rectangle head_sprite = Rectangle{32,16, 16,16};
+            Rectangle head_sprite = Rectangle{32.0f, 16.0f, 16.0f, 16.0f};
             if ((body[i].pre_dir == dir_right && body[i].cur_dir == dir_down) ||
                 (body[i].pre_dir == dir_up && body[i].cur_dir == dir_left)) {
                     DrawSnakePart(head_sprite, draw_pos, dir_right);
@@ -87,7 +93,7 @@ void Snake::Draw() {
         }
         // draw body
         else {
-            Rectangle body_sprite = Rectangle{16,0, 16,16 * flip_frame};
+            Rectangle body_sprite = MakeMirroredSprite(16.0f, 0.0f);
             DrawSnakePart(body_sprite, draw_pos, body[i].cur_dir);
         }
         // draw turn body  
