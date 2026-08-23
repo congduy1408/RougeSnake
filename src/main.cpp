@@ -16,19 +16,21 @@ int main()
     InitWindow(screenWidth, screenHeight, "Rouge Snake");
     SetTargetFPS(60);
 
-    game game;
-    game.InitGameObject();
-    // std::cout << spawn_food.position << std::endl;
-    while (!WindowShouldClose())
     {
-        game.Update();
-        // Drawing
-        BeginDrawing();
-        ClearBackground(BLACK);
-        game.Draw();
-        EndDrawing();
+        game game;
+        game.InitGameObject();
+        // std::cout << spawn_food.position << std::endl;
+        while (!WindowShouldClose())
+        {
+            game.Update();
+            // Drawing
+            BeginDrawing();
+            ClearBackground(BLACK);
+            game.Draw();
+            EndDrawing();
+        }
     }
-    
+
     CloseWindow();
 }
 

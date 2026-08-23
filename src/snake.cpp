@@ -2,16 +2,31 @@
 
 Snake::Snake()
 {
-    init_length = 3;
-    snake_move = dir_right;
     body.reserve(300);
     turn_point_list.reserve(300);
+    // snake_sprite = LoadTexture("sprite/snake.png");
+    snake_sprite = LoadTexture("sprite/game_sprite.png");
+    SetTextureFilter(snake_sprite, TEXTURE_FILTER_POINT);
+    Reset();
+}
+
+Snake::~Snake() {
+    if (snake_sprite.id != 0) {
+        UnloadTexture(snake_sprite);
+    }
+}
+
+void Snake::Reset() {
+    init_length = 3;
+    snake_move = dir_right;
+    input_queue.clear();
+    frame_counter = 0;
+    flip_frame = 1;
+    body.clear();
+    turn_point_list.clear();
     body.push_back(snake_body{Vector2{10,15}, dir_right, dir_right, false});
     body.push_back(snake_body{Vector2{9,15}, dir_right, dir_right, false});
     body.push_back(snake_body{Vector2{8,15}, dir_right, dir_right, false});
-    snake_sprite = LoadTexture("sprite/snake.png");
-    SetTextureFilter(snake_sprite, TEXTURE_FILTER_POINT);
-
 }
 
 void Snake::DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction dir) {
@@ -76,7 +91,7 @@ void Snake::Draw() {
             DrawSnakePart(tail_sprite, draw_pos, body[i].cur_dir);
         }
         else if (body[i].is_turn) {
-            Rectangle head_sprite = Rectangle{32.0f, 16.0f, 16.0f, 16.0f};
+            Rectangle head_sprite = Rectangle{48.0f, 0.0f, 16.0f, 16.0f};
             if ((body[i].pre_dir == dir_right && body[i].cur_dir == dir_down) ||
                 (body[i].pre_dir == dir_up && body[i].cur_dir == dir_left)) {
                     DrawSnakePart(head_sprite, draw_pos, dir_right);
@@ -102,42 +117,57 @@ void Snake::Draw() {
 }
 
 void Snake::TailCut(int cut_index) {
-    for (unsigned int i=cut_index; i < body.size(); i++) {
-        body.pop_back();
+    if (body.empty()) {
+        return;
+    }
+
+    size_t first_removed = cut_index > 0 ? static_cast<size_t>(cut_index) : 1;
+    if (first_removed < body.size()) {
+        body.resize(first_removed);
     }
 }
 
 void Snake::ReadInput() {
-    bool snake_turn = false;
-    if (IsKeyDown(KEY_RIGHT) && snake_move != dir_left && snake_move != dir_right){
-        snake_move = dir_right;
-        snake_turn = true;
+    constexpr size_t max_queued_turns = 2;
+    if (body.empty() || input_queue.size() >= max_queued_turns) {
+        return;
     }
-    else if (IsKeyDown(KEY_LEFT) && snake_move != dir_right && snake_move != dir_left) {
-        snake_move = dir_left;
-        snake_turn = true;
+
+    direction current_direction = input_queue.empty() ? snake_move : input_queue.back();
+    if (IsKeyPressed(KEY_RIGHT) && current_direction != dir_left && current_direction != dir_right){
+        input_queue.push_back(dir_right);
     }
-    else if (IsKeyDown(KEY_UP) && snake_move != dir_down && snake_move != dir_up){
-        snake_move = dir_up;
-        snake_turn = true;
+    else if (IsKeyPressed(KEY_LEFT) && current_direction != dir_right && current_direction != dir_left) {
+        input_queue.push_back(dir_left);
     }
-    else if (IsKeyDown(KEY_DOWN) && snake_move != dir_up && snake_move != dir_down) {
-        snake_move = dir_down;
-        snake_turn = true;
+    else if (IsKeyPressed(KEY_UP) && current_direction != dir_down && current_direction != dir_up){
+        input_queue.push_back(dir_up);
     }
-    // record the point snake change direction
-    // the record will contain: change position + new direction
-    if (snake_turn) {
-        turn_point_list.push_back({body.front().position, snake_move});
-        body.front().pre_dir = body.front().cur_dir;
-        body.front().cur_dir = snake_move;
-        body.front().is_turn = true;
+    else if (IsKeyPressed(KEY_DOWN) && current_direction != dir_up && current_direction != dir_down) {
+        input_queue.push_back(dir_down);
     }
 }
 
 void Snake::MoveSnake() {
+    if (body.empty()) {
+        return;
+    }
+
+    if (!input_queue.empty()) {
+        direction previous_direction = snake_move;
+        snake_move = input_queue.front();
+        input_queue.erase(input_queue.begin());
+
+        // The old head cell becomes the corner body segment after this move.
+        body.front().pre_dir = previous_direction;
+        body.front().cur_dir = snake_move;
+        body.front().is_turn = true;
+        turn_point_list.push_back({body.front().position, snake_move, previous_direction, true});
+    }
+
+    snake_body next_head = body.front();
     body.pop_back();
-    body.insert(body.begin(), body.front());
+    body.insert(body.begin(), next_head);
     body.front().is_turn = false;
     switch (snake_move) {
         case dir_up:
@@ -159,11 +189,18 @@ void Snake::MoveSnake() {
 }
 
 void Snake::Grow() {
+    if (body.empty()) {
+        return;
+    }
     body.push_back(body.back());
 }
 
 // snakestate snake::CheckSnakeState(gamestate &gamestate, food &food) {
 void Snake::CheckSnakeState() {
+    if (body.empty()) {
+        return;
+    }
+
     // check hit wall
     if (body.front().position.x > cellcount_width ||
         body.front().position.x < 0 ||
@@ -183,7 +220,6 @@ void Snake::CheckSnakeState() {
     }
 }
 void Snake::Update() {
-    ReadInput();
     MoveSnake();
     CheckSnakeState();
 }

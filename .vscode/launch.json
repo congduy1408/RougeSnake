@@ -5,7 +5,7 @@
             "name": "Launch RougeSnake",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}\\RougeSnake.exe",
+            "program": "${workspaceFolder}\\RougeSnakeDebug.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -13,7 +13,7 @@
             "externalConsole": false,
             "MIMode": "gdb",
             "miDebuggerPath": "C:\\raylib\\w64devkit\\bin\\gdb.exe",
-            "preLaunchTask": "Build RougeSnake",
+            "preLaunchTask": "Build RougeSnake Debug",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",

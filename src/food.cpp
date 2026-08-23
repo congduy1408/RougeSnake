@@ -20,7 +20,8 @@ bool Food::CollideWallPosition(const std::vector<bool>& wall_cells) {
     if (x < 0 || x >= cellcount_width || y < 0 || y >= cellcount_height) {
         return true;
     }
-    return wall_cells[y * cellcount_width + x];
+    int cell_index = y * cellcount_width + x;
+    return cell_index < 0 || static_cast<size_t>(cell_index) >= wall_cells.size() || wall_cells[cell_index];
 }
 
 bool Food::IsInsideBoundary(Vector2 pos) {

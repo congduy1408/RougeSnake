@@ -15,6 +15,9 @@ Vector2 RandomPosition() {
 }
 
 bool FixFrameUpdate(int fps, int &frame_counter) {
+    if (fps <= 0) {
+        return false;
+    }
     frame_counter++;
     if (frame_counter >= (60/fps)) {
         // change frame

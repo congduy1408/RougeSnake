@@ -22,6 +22,7 @@
 #**************************************************************************************************
 
 .PHONY: all clean
+.DEFAULT_GOAL := all
 
 # Define required raylib variables
 PROJECT_NAME       ?= RougeSnake
@@ -194,7 +195,7 @@ endif
 #  -std=gnu99           defines C language mode (GNU C from 1999 revision)
 #  -Wno-missing-braces  ignore invalid warning (GCC bug 53119)
 #  -D_DEFAULT_SOURCE    use with -std=c99 on Linux and PLATFORM_WEB, required for timespec
-CFLAGS += -Wall -std=c++14 -D_DEFAULT_SOURCE -Wno-missing-braces
+CFLAGS += -Wall -std=c++14 -D_DEFAULT_SOURCE -Wno-missing-braces -MMD -MP
 LDFLAGS +=
 
 ifeq ($(BUILD_MODE),DEBUG)
@@ -210,6 +211,7 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     ifeq ($(PLATFORM_OS),WINDOWS)
         # resource file contains windows executable icon and properties
         # -Wl,--subsystem,windows hides the console window
+        EXT = .exe
         WIN_RESOURCES += $(RAYLIB_PATH)/src/raylib.rc.data
     endif
     ifeq ($(PLATFORM_OS),LINUX)
@@ -367,11 +369,14 @@ rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst 
 
 # Define all source files required
 SRC_DIR = src
-OBJ_DIR = obj
+OBJ_DIR = obj/$(BUILD_MODE)
 
 # Define all object files from source files
 SRC = $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRC))
+DEPS = $(OBJS:.o=.d)
+
+-include $(DEPS)
 
 # For Android platform we call a custom Makefile.Android
 ifeq ($(PLATFORM),PLATFORM_ANDROID)
@@ -379,7 +384,7 @@ ifeq ($(PLATFORM),PLATFORM_ANDROID)
     export PROJECT_NAME
     export SRC_DIR
 else
-    MAKEFILE_PARAMS = $(PROJECT_NAME)
+    MAKEFILE_PARAMS = $(PROJECT_NAME)$(EXT)
 endif
 
 # Default target entry
@@ -388,7 +393,7 @@ all:
 	$(MAKE) $(MAKEFILE_PARAMS)
 
 # Project target defined by PROJECT_NAME
-$(PROJECT_NAME): $(OBJS)
+$(PROJECT_NAME)$(EXT): $(OBJS)
 	$(CC) -o $(PROJECT_NAME)$(EXT) $(OBJS) $(CFLAGS) $(INCLUDE_PATHS) $(LDFLAGS) $(WIN_RESOURCES) $(LDLIBS) -D$(PLATFORM)
 
 # Compile source files
@@ -403,7 +408,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 clean:
 ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     ifeq ($(PLATFORM_OS),WINDOWS)
-		rm -f $(OBJ_DIR)/*.o *.exe
+		rm -f obj/*.o obj/DEBUG/*.o obj/DEBUG/*.d obj/RELEASE/*.o obj/RELEASE/*.d *.exe
     endif
     ifeq ($(PLATFORM_OS),LINUX)
 	find -type f -executable | xargs file -i | grep -E 'x-object|x-archive|x-sharedlib|x-executable' | rev | cut -d ':' -f 2- | rev | xargs rm -fv

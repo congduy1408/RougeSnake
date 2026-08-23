@@ -5,12 +5,13 @@ void game::InitGameObject() {
     state.currentScreen = MAIN_MENU;
     combo_counter = 0;
     score_multiplier = 1;
-    spawn_snake = Snake();
+    spawn_snake.Reset();
     wall_bricks.clear();
     wall_cells.assign(cellcount_width * cellcount_height, false);
     InitStationaryWall();
     spawn_food = Food();
     spawn_food.SetFoodPosition(spawn_snake, wall_cells);
+    last_get_time = GetTime();
 }
 
 void game::Draw() {
@@ -46,7 +47,12 @@ void game::Update() {
             }
         } break;
         case STAGE: {
-            if (FixUpdate(fix_update_time)) {
+            if (spawn_snake.body.empty()) {
+                state.currentScreen = GAMEOVER;
+                break;
+            }
+            spawn_snake.ReadInput();
+            if (FixUpdate(spawn_snake.move_interval)) {
                 spawn_snake.Update();
                 if (IsWallCell(spawn_snake.body.front().position)) {
                     state.currentScreen = GAMEOVER;
@@ -91,6 +97,9 @@ bool game::FixUpdate(float interval) {
 }
 
 bool game::SnakeCollision(Snake& snake, GameObject object) {
+    if (snake.body.empty()) {
+        return false;
+    }
     if (snake.body.front().position == object.GetPosition()) {
         return true;
     } else {
@@ -108,7 +117,8 @@ bool game::IsWallCell(Vector2 pos) {
     if (x < 0 || x >= cellcount_width || y < 0 || y >= cellcount_height) {
         return true;
     }
-    return wall_cells[CellIndex(pos)];
+    int cell_index = CellIndex(pos);
+    return cell_index < 0 || static_cast<size_t>(cell_index) >= wall_cells.size() || wall_cells[cell_index];
 }
 
 void game::AddWallBrick(Vector2 pos) {
@@ -119,6 +129,9 @@ void game::AddWallBrick(Vector2 pos) {
     }
 
     int cell_index = CellIndex(pos);
+    if (cell_index < 0 || static_cast<size_t>(cell_index) >= wall_cells.size()) {
+        return;
+    }
     if (wall_cells[cell_index]) {
         return;
     }

@@ -17,6 +17,21 @@
             ]
         },
         {
+            "label": "Build RougeSnake Debug",
+            "type": "shell",
+            "command": "C:\\raylib\\w64devkit\\bin\\mingw32-make.exe",
+            "args": [
+                "BUILD_MODE=DEBUG",
+                "PROJECT_NAME=RougeSnakeDebug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
             "label": "Clean RougeSnake",
             "type": "shell",
             "command": "C:\\raylib\\w64devkit\\bin\\mingw32-make.exe",

@@ -21,9 +21,14 @@ class Snake {
         std::vector<snake_body> body;
         std::vector<snake_body> turn_point_list;
         int init_length = 3;
+        float move_interval = 0.1f;
         direction snake_move;
         Texture2D snake_sprite;
         Snake();
+        ~Snake();
+        Snake(const Snake&) = delete;
+        Snake& operator=(const Snake&) = delete;
+        void Reset();
         void Draw();
         void TailCut(int cut_index);
         void ReadInput();
@@ -34,8 +39,9 @@ class Snake {
 
         void Update();
     private:
-        int fps = 3;
+        int fps = 15;
         int frame_counter = 0;
         int flip_frame = 1;
+        std::vector<direction> input_queue;
         void DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction dir);
 };
