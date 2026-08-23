@@ -18,6 +18,8 @@ void game::InitGameObject() {
     state.currentScreen = MAIN_MENU;
     combo_counter = 0;
     score_multiplier = 1;
+    score_popup_active = false;
+    score_popup_remaining = 0.0f;
     spawn_snake.Reset();
     InitGround();
     wall_bricks.clear();
@@ -40,6 +42,7 @@ void game::Draw() {
             }
             spawn_snake.Draw();
             spawn_food.Draw();
+            DrawScorePopup();
             DrawUI();
         } break;
         case GAMEOVER: {
@@ -60,6 +63,7 @@ void game::Update() {
             }
         } break;
         case STAGE: {
+            UpdateScorePopup();
             if (spawn_snake.body.empty()) {
                 state.currentScreen = GAMEOVER;
                 break;
@@ -73,9 +77,12 @@ void game::Update() {
                 }
                 spawn_food.Update();
                 if (SnakeCollision(spawn_snake, spawn_food)) {
+                    Vector2 eaten_position = spawn_food.GetPosition();
                     int food_score = spawn_food.GetScore();
                     UpdateComboCounter(food_score, spawn_food.max_score);
-                    state.score += GetFoodScoreWithCombo(food_score);
+                    float gained_score = GetFoodScoreWithCombo(food_score);
+                    state.score += gained_score;
+                    ShowScorePopup(eaten_position, gained_score);
                     spawn_snake.Grow();
                     spawn_food.SetFoodPosition(spawn_snake, wall_cells);
                 } else {
@@ -195,6 +202,46 @@ void game::DrawUI() {
     DrawText(TextFormat("Score: %.1f", state.score), 16, text_y, 20, darkGreen);
     DrawText(TextFormat("Combo: %d", combo_counter), 220, text_y, 20, darkGreen);
     DrawText(TextFormat("Multiplier: %.1fx", score_multiplier), 400, text_y, 20, darkGreen);
+}
+
+void game::ShowScorePopup(Vector2 position, float value) {
+    score_popup_position = position;
+    score_popup_value = value;
+    score_popup_remaining = score_popup_duration;
+    score_popup_active = true;
+}
+
+void game::UpdateScorePopup() {
+    if (!score_popup_active) {
+        return;
+    }
+
+    score_popup_remaining -= GetFrameTime();
+    if (score_popup_remaining <= 0.0f) {
+        score_popup_remaining = 0.0f;
+        score_popup_active = false;
+    }
+}
+
+void game::DrawScorePopup() {
+    if (!score_popup_active || score_popup_duration <= 0.0f) {
+        return;
+    }
+
+    float remaining_ratio = score_popup_remaining / score_popup_duration;
+    float animation_progress = 1.0f - remaining_ratio;
+    const char* popup_text = TextFormat("+%.1f", score_popup_value);
+    int font_size = 16;
+    int text_width = MeasureText(popup_text, font_size);
+    float draw_x = score_popup_position.x * cellsize + cellsize / 2.0f - text_width / 2.0f;
+    float draw_y = score_popup_position.y * cellsize - animation_progress * 20.0f;
+    if (draw_y < 2.0f) {
+        draw_y = 2.0f;
+    }
+
+    Color popup_color = darkGreen;
+    popup_color.a = static_cast<unsigned char>(255.0f * remaining_ratio);
+    DrawText(popup_text, static_cast<int>(draw_x), static_cast<int>(draw_y), font_size, popup_color);
 }
 
 void game::InitStationaryWall() {

@@ -36,7 +36,15 @@ class game {
     private:
         Texture2D game_sprite = {};
         std::vector<direction> ground_directions;
+        bool score_popup_active = false;
+        Vector2 score_popup_position = {};
+        float score_popup_value = 0.0f;
+        float score_popup_remaining = 0.0f;
+        float score_popup_duration = 0.8f;
         void InitGround();
         void DrawGround();
         void DrawUI();
+        void ShowScorePopup(Vector2 position, float value);
+        void UpdateScorePopup();
+        void DrawScorePopup();
 };

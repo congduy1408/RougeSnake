@@ -109,8 +109,6 @@ void Food::Draw() {
         Vector2 origin = {draw_pos.width / 2.0f, draw_pos.height / 2.0f};
         DrawTexturePro(*food_sprite, GetSpriteSource(), draw_pos, origin, 0.0f, WHITE);
     }
-    std::string score_text = std::to_string(score);
-    DrawText(score_text.c_str(), position.x * cellsize, position.y * cellsize - cellsize, 14, darkGreen);
 }
 
 void Food::OnSnakeEnter(Snake& snake) {
