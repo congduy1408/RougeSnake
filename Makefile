@@ -21,7 +21,7 @@
 #
 #**************************************************************************************************
 
-.PHONY: all clean
+.PHONY: all clean release debug
 .DEFAULT_GOAL := all
 
 # Define required raylib variables
@@ -203,6 +203,9 @@ ifeq ($(BUILD_MODE),DEBUG)
 else
     CFLAGS += -Os -ffunction-sections -fdata-sections -s
     LDFLAGS += -Wl,--gc-sections -s
+    ifeq ($(PLATFORM_OS),WINDOWS)
+        LDFLAGS += -static -static-libgcc -static-libstdc++
+    endif
 endif
 
 # Additional flags for compiler (if desired)
@@ -313,7 +316,11 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     ifeq ($(PLATFORM_OS),WINDOWS)
         # Libraries for Windows desktop compilation
         # NOTE: WinMM library required to set high-res timer resolution
-        LDLIBS = -lraylib -lopengl32 -lgdi32 -lwinmm
+        ifeq ($(RAYLIB_LIBTYPE),STATIC)
+            LDLIBS = $(RAYLIB_RELEASE_PATH)/libraylib.a -lopengl32 -lgdi32 -lwinmm
+        else
+            LDLIBS = -lraylib -lopengl32 -lgdi32 -lwinmm
+        endif
         # Required for physac examples
         #LDLIBS += -static -lpthread
     endif
@@ -392,8 +399,14 @@ endif
 all:
 	$(MAKE) $(MAKEFILE_PARAMS)
 
+release:
+	$(MAKE) BUILD_MODE=RELEASE PROJECT_NAME=$(PROJECT_NAME) $(PROJECT_NAME)$(EXT)
+
+debug:
+	$(MAKE) BUILD_MODE=DEBUG PROJECT_NAME=$(PROJECT_NAME)Debug $(PROJECT_NAME)Debug$(EXT)
+
 # Project target defined by PROJECT_NAME
-$(PROJECT_NAME)$(EXT): $(OBJS)
+$(PROJECT_NAME)$(EXT): $(OBJS) Makefile
 	$(CC) -o $(PROJECT_NAME)$(EXT) $(OBJS) $(CFLAGS) $(INCLUDE_PATHS) $(LDFLAGS) $(WIN_RESOURCES) $(LDLIBS) -D$(PLATFORM)
 
 # Compile source files
@@ -401,7 +414,7 @@ $(PROJECT_NAME)$(EXT): $(OBJS)
 $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp Makefile | $(OBJ_DIR)
 	$(CC) -c $< -o $@ $(CFLAGS) $(INCLUDE_PATHS) -D$(PLATFORM)
 
 # Clean everything

@@ -5,6 +5,33 @@
 //     checksnake = _snake;
 // }
 
+void Food::SetSpriteTexture(const Texture2D& sprite) {
+    food_sprite = &sprite;
+}
+
+void Food::SetFoodType(FoodType new_type) {
+    food_type = new_type;
+}
+
+FoodType Food::GetFoodType() const {
+    return food_type;
+}
+
+void Food::Reset(FoodType new_type) {
+    food_type = new_type;
+    ResetScore();
+}
+
+Rectangle Food::GetSpriteSource() const {
+    switch (food_type) {
+        case FoodType::Key:
+            return Rectangle{0.0f, 32.0f, 16.0f, 16.0f};
+        case FoodType::Apple:
+        default:
+            return Rectangle{16.0f, 32.0f, 16.0f, 16.0f};
+    }
+}
+
 bool Food::CollideSnakePosition(Snake& snake) {
     for (unsigned int i=0; i< snake.body.size(); i++) {
         if (Vector2Equals(position, snake.body[i].position)) {
@@ -72,7 +99,16 @@ void Food::SetFoodPosition(Snake& snake, const std::vector<bool>& wall_cells) {
 
 void Food::Draw() {
     DrawRectangleLines((position.x - 1) * cellsize, (position.y - 1) * cellsize, cellsize * 3, cellsize * 3, darkGreen);
-    DrawRectangle(position.x * cellsize, position.y * cellsize, cellsize, cellsize, darkGreen);
+    if (food_sprite != nullptr && food_sprite->id != 0) {
+        Rectangle draw_pos = {
+            position.x * cellsize + cellsize / 2.0f,
+            position.y * cellsize + cellsize / 2.0f,
+            static_cast<float>(cellsize),
+            static_cast<float>(cellsize)
+        };
+        Vector2 origin = {draw_pos.width / 2.0f, draw_pos.height / 2.0f};
+        DrawTexturePro(*food_sprite, GetSpriteSource(), draw_pos, origin, 0.0f, WHITE);
+    }
     std::string score_text = std::to_string(score);
     DrawText(score_text.c_str(), position.x * cellsize, position.y * cellsize - cellsize, 14, darkGreen);
 }

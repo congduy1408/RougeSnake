@@ -6,6 +6,10 @@
 
 class game {
     public:
+        game();
+        ~game();
+        game(const game&) = delete;
+        game& operator=(const game&) = delete;
         gamestate state;
         Snake spawn_snake;
         Food spawn_food;
@@ -29,4 +33,10 @@ class game {
     void InitStationaryWall();
     void UpdateComboCounter(int food_score, int food_max_score);
     float GetFoodScoreWithCombo(int food_score);
+    private:
+        Texture2D game_sprite = {};
+        std::vector<direction> ground_directions;
+        void InitGround();
+        void DrawGround();
+        void DrawUI();
 };

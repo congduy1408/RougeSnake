@@ -6,11 +6,13 @@ class Snake;
 
 class Brick: public GameObject {
     public:
-        Brick(Vector2 position) :
-        GameObject(position) {};
-        Brick() {};
+        Brick(Vector2 position, const Texture2D& sprite) :
+        GameObject(position), wall_sprite(&sprite), sprite_direction(GetRandomDirection()) {};
         void SetBrickPos(Vector2 pos);
         void Draw();
         void Update();
         void OnSnakeEnter(Snake& snake) override;
+    private:
+        const Texture2D* wall_sprite = nullptr;
+        direction sprite_direction = dir_right;
 };

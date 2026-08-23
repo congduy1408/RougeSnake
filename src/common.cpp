@@ -2,9 +2,10 @@
 
 int cellsize = 16;
 int cellcount_width = 40;
-int cellcount_height = 30;
+int cellcount_height = 25;
+int ui_cellcount_height = 5;
 int screenWidth = cellsize * cellcount_width;
-int screenHeight = cellsize * cellcount_height;
+int screenHeight = cellsize * (cellcount_height + ui_cellcount_height);
 float fix_update_time = 0.05;
 // float sprite_update_time = 0.05;
 
@@ -27,4 +28,11 @@ bool FixFrameUpdate(int fps, int &frame_counter) {
     else {
         return false;
     }
+}
+
+direction GetRandomDirection()
+{
+    return static_cast<direction>(
+        GetRandomValue(dir_up, dir_right)
+    );
 }

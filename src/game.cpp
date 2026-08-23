@@ -1,15 +1,29 @@
 #include "include/game.h"
 
+game::game() {
+    game_sprite = LoadTexture("sprite/game_sprite.png");
+    SetTextureFilter(game_sprite, TEXTURE_FILTER_POINT);
+    spawn_food.SetSpriteTexture(game_sprite);
+}
+
+game::~game() {
+    wall_bricks.clear();
+    if (game_sprite.id != 0) {
+        UnloadTexture(game_sprite);
+    }
+}
+
 void game::InitGameObject() {
     state = gamestate();
     state.currentScreen = MAIN_MENU;
     combo_counter = 0;
     score_multiplier = 1;
     spawn_snake.Reset();
+    InitGround();
     wall_bricks.clear();
     wall_cells.assign(cellcount_width * cellcount_height, false);
     InitStationaryWall();
-    spawn_food = Food();
+    spawn_food.Reset(FoodType::Apple);
     spawn_food.SetFoodPosition(spawn_snake, wall_cells);
     last_get_time = GetTime();
 }
@@ -20,14 +34,13 @@ void game::Draw() {
             DrawText("Press Enter to start game", screenWidth/2 ,screenHeight/2, 20, darkGreen);
         } break;
         case STAGE: {
+            DrawGround();
             for (unsigned int i=0; i<wall_bricks.size(); i++) {
                 wall_bricks[i].Draw();
             }
             spawn_snake.Draw();
             spawn_food.Draw();
-            DrawText(TextFormat("Score: %.1f", state.score), 10,10, 20, darkGreen);
-            DrawText(TextFormat("Combo: %d", combo_counter), 10,35, 20, darkGreen);
-            DrawText(TextFormat("Multiplier: %.1fx", score_multiplier), 10,60, 20, darkGreen);
+            DrawUI();
         } break;
         case GAMEOVER: {
             DrawText(TextFormat("Score: %.1f", state.score), screenWidth/2 ,screenHeight/2, 50, darkGreen);
@@ -137,7 +150,51 @@ void game::AddWallBrick(Vector2 pos) {
     }
 
     wall_cells[cell_index] = true;
-    wall_bricks.push_back(Brick(pos));
+    wall_bricks.emplace_back(pos, game_sprite);
+}
+
+void game::InitGround() {
+    ground_directions.clear();
+    ground_directions.reserve(cellcount_width * cellcount_height);
+    for (int i = 0; i < cellcount_width * cellcount_height; i++) {
+        ground_directions.push_back(GetRandomValue(0, 1) == 0 ? dir_left : dir_right);
+    }
+}
+
+void game::DrawGround() {
+    if (game_sprite.id == 0) {
+        return;
+    }
+
+    Rectangle ground_sprite = {16.0f, 16.0f, 16.0f, 16.0f};
+    for (int y = 0; y < cellcount_height; y++) {
+        for (int x = 0; x < cellcount_width; x++) {
+            int cell_index = y * cellcount_width + x;
+            float rotation = ground_directions[cell_index] == dir_left ? 180.0f : 0.0f;
+            Rectangle draw_pos = {
+                x * cellsize + cellsize / 2.0f,
+                y * cellsize + cellsize / 2.0f,
+                static_cast<float>(cellsize),
+                static_cast<float>(cellsize)
+            };
+            Vector2 origin = {draw_pos.width / 2.0f, draw_pos.height / 2.0f};
+            DrawTexturePro(game_sprite, ground_sprite, draw_pos, origin, rotation, WHITE);
+        }
+    }
+}
+
+void game::DrawUI() {
+    int ui_y = cellcount_height * cellsize;
+    Color ui_background = {8, 18, 27, 255};
+    DrawRectangle(0, ui_y, screenWidth, screenHeight - ui_y, ui_background);
+    DrawLineEx(Vector2{0.0f, static_cast<float>(ui_y)},
+               Vector2{static_cast<float>(screenWidth), static_cast<float>(ui_y)},
+               2.0f, darkGreen);
+
+    int text_y = ui_y + 30;
+    DrawText(TextFormat("Score: %.1f", state.score), 16, text_y, 20, darkGreen);
+    DrawText(TextFormat("Combo: %d", combo_counter), 220, text_y, 20, darkGreen);
+    DrawText(TextFormat("Multiplier: %.1fx", score_multiplier), 400, text_y, 20, darkGreen);
 }
 
 void game::InitStationaryWall() {

@@ -2,6 +2,11 @@
 #include "common.h"
 #include "include/gameobject.h"
 
+enum class FoodType {
+    Apple,
+    Key
+};
+
 class Food: public GameObject {
     public:
         double available_time = 10;
@@ -11,6 +16,10 @@ class Food: public GameObject {
         Food(Vector2 position) :
         GameObject(position) {};
         Food() {};
+        void SetSpriteTexture(const Texture2D& sprite);
+        void SetFoodType(FoodType new_type);
+        FoodType GetFoodType() const;
+        void Reset(FoodType new_type = FoodType::Apple);
         // void SetSnake(std::vector<Vector2> _snake);
         bool CollideSnakePosition(Snake& snake);
         bool CollideWallPosition(const std::vector<bool>& wall_cells);
@@ -23,4 +32,8 @@ class Food: public GameObject {
         void Draw();
         void Update();
         void OnSnakeEnter(Snake& snake) override;
+    private:
+        const Texture2D* food_sprite = nullptr;
+        FoodType food_type = FoodType::Apple;
+        Rectangle GetSpriteSource() const;
 };
