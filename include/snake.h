@@ -30,18 +30,20 @@ class Snake {
         Snake& operator=(const Snake&) = delete;
         void Reset();
         void Draw();
-        void TailCut(int cut_index);
+        int TailCut(int cut_index);
         void ReadInput();
         void MoveSnake();
         // snakestate CheckSnakeState(gamestate &gamestate, food &food);
-        void CheckSnakeState();
+        int CheckSnakeState();
         void Grow();
+        void SetSpeedBoost(bool active, float multiplier = 1.5f);
 
-        void Update();
+        int Update();
     private:
         int fps = 15;
         int frame_counter = 0;
         int flip_frame = 1;
+        float normal_move_interval = 0.1f;
         std::vector<direction> input_queue;
         void DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction dir);
 };

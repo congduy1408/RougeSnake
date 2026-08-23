@@ -18,6 +18,7 @@ Snake::~Snake() {
 
 void Snake::Reset() {
     init_length = 3;
+    move_interval = normal_move_interval;
     snake_move = dir_right;
     input_queue.clear();
     frame_counter = 0;
@@ -116,15 +117,18 @@ void Snake::Draw() {
     }   
 }
 
-void Snake::TailCut(int cut_index) {
+int Snake::TailCut(int cut_index) {
     if (body.empty()) {
-        return;
+        return 0;
     }
 
     size_t first_removed = cut_index > 0 ? static_cast<size_t>(cut_index) : 1;
     if (first_removed < body.size()) {
+        int removed_count = static_cast<int>(body.size() - first_removed);
         body.resize(first_removed);
+        return removed_count;
     }
+    return 0;
 }
 
 void Snake::ReadInput() {
@@ -195,10 +199,19 @@ void Snake::Grow() {
     body.push_back(body.back());
 }
 
-// snakestate snake::CheckSnakeState(gamestate &gamestate, food &food) {
-void Snake::CheckSnakeState() {
-    if (body.empty()) {
+void Snake::SetSpeedBoost(bool active, float multiplier) {
+    if (multiplier <= 1.0f) {
+        move_interval = normal_move_interval;
         return;
+    }
+
+    move_interval = active ? normal_move_interval / multiplier : normal_move_interval;
+}
+
+// snakestate snake::CheckSnakeState(gamestate &gamestate, food &food) {
+int Snake::CheckSnakeState() {
+    if (body.empty()) {
+        return 0;
     }
 
     // check hit wall
@@ -214,12 +227,12 @@ void Snake::CheckSnakeState() {
     for (unsigned int i=1; i < body.size(); i++) {
         if (Vector2Equals(body.front().position,body[i].position)) {
             // std::cout << 'cut index:' << i << std::endl;
-            TailCut(i);
-            break;
+            return TailCut(i);
         }
     }
+    return 0;
 }
-void Snake::Update() {
+int Snake::Update() {
     MoveSnake();
-    CheckSnakeState();
+    return CheckSnakeState();
 }

@@ -68,9 +68,18 @@ void game::Update() {
                 state.currentScreen = GAMEOVER;
                 break;
             }
+            spawn_snake.SetSpeedBoost(IsKeyDown(KEY_X));
             spawn_snake.ReadInput();
             if (FixUpdate(spawn_snake.move_interval)) {
-                spawn_snake.Update();
+                int removed_body_count = spawn_snake.Update();
+                if (removed_body_count > 0) {
+                    float requested_penalty = removed_body_count * 2.0f;
+                    float deducted_score = requested_penalty < state.score ? requested_penalty : state.score;
+                    state.score -= deducted_score;
+                    if (deducted_score > 0.0f) {
+                        ShowScorePopup(spawn_snake.body.front().position, -deducted_score);
+                    }
+                }
                 if (IsWallCell(spawn_snake.body.front().position)) {
                     state.currentScreen = GAMEOVER;
                     break;
@@ -230,7 +239,7 @@ void game::DrawScorePopup() {
 
     float remaining_ratio = score_popup_remaining / score_popup_duration;
     float animation_progress = 1.0f - remaining_ratio;
-    const char* popup_text = TextFormat("+%.1f", score_popup_value);
+    const char* popup_text = TextFormat("%+.1f", score_popup_value);
     int font_size = 16;
     int text_width = MeasureText(popup_text, font_size);
     float draw_x = score_popup_position.x * cellsize + cellsize / 2.0f - text_width / 2.0f;
@@ -239,7 +248,7 @@ void game::DrawScorePopup() {
         draw_y = 2.0f;
     }
 
-    Color popup_color = darkGreen;
+    Color popup_color = score_popup_value < 0.0f ? Color{218, 74, 66, 255} : darkGreen;
     popup_color.a = static_cast<unsigned char>(255.0f * remaining_ratio);
     DrawText(popup_text, static_cast<int>(draw_x), static_cast<int>(draw_y), font_size, popup_color);
 }
