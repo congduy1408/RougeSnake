@@ -28,15 +28,18 @@ class Snake {
         ~Snake();
         Snake(const Snake&) = delete;
         Snake& operator=(const Snake&) = delete;
-        void Reset();
+        void Reset(Vector2 head_position = Vector2{10, 15}, direction start_direction = dir_right);
         void Draw();
         int TailCut(int cut_index);
         void ReadInput();
+        bool QueueDirection(direction new_direction);
         void MoveSnake();
         // snakestate CheckSnakeState(gamestate &gamestate, food &food);
         int CheckSnakeState();
         void Grow();
+        bool IsAlive() const;
         void SetSpeedBoost(bool active, float multiplier = 1.5f);
+        void SetTint(Color tint);
 
         int Update();
     private:
@@ -44,6 +47,8 @@ class Snake {
         int frame_counter = 0;
         int flip_frame = 1;
         float normal_move_interval = 0.1f;
+        Color snake_tint = WHITE;
         std::vector<direction> input_queue;
+        Color GetDrawTint() const;
         void DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction dir);
 };

@@ -16,18 +16,35 @@ Snake::~Snake() {
     }
 }
 
-void Snake::Reset() {
+void Snake::Reset(Vector2 head_position, direction start_direction) {
     init_length = 3;
     move_interval = normal_move_interval;
-    snake_move = dir_right;
+    snake_move = start_direction;
     input_queue.clear();
     frame_counter = 0;
     flip_frame = 1;
     body.clear();
     turn_point_list.clear();
-    body.push_back(snake_body{Vector2{10,15}, dir_right, dir_right, false});
-    body.push_back(snake_body{Vector2{9,15}, dir_right, dir_right, false});
-    body.push_back(snake_body{Vector2{8,15}, dir_right, dir_right, false});
+    for (int i = 0; i < init_length; i++) {
+        Vector2 body_position = head_position;
+        switch (start_direction) {
+            case dir_up:
+                body_position.y += i;
+                break;
+            case dir_down:
+                body_position.y -= i;
+                break;
+            case dir_left:
+                body_position.x += i;
+                break;
+            case dir_right:
+                body_position.x -= i;
+                break;
+            default:
+                break;
+        }
+        body.push_back(snake_body{body_position, start_direction, start_direction, false});
+    }
 }
 
 void Snake::DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction dir) {
@@ -56,8 +73,18 @@ void Snake::DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction di
         draw_pos,
         origin,
         rotation,
-        WHITE
+        GetDrawTint()
     );
+}
+
+Color Snake::GetDrawTint() const {
+    constexpr double blink_changes_per_second = 4.0;
+    bool show_warning =
+        body.size() == 3 &&
+        static_cast<int>(GetTime() * blink_changes_per_second) % 2 == 0;
+
+    // Keep some green and blue so colored sprite pixels remain visible under tinting.
+    return show_warning ? Color{255, 70, 70, 255} : snake_tint;
 }
 
 void Snake::Draw() {
@@ -132,24 +159,40 @@ int Snake::TailCut(int cut_index) {
 }
 
 void Snake::ReadInput() {
-    constexpr size_t max_queued_turns = 2;
-    if (body.empty() || input_queue.size() >= max_queued_turns) {
+    if (body.empty()) {
         return;
     }
 
+    if (IsKeyPressed(KEY_RIGHT)) {
+        QueueDirection(dir_right);
+    }
+    else if (IsKeyPressed(KEY_LEFT)) {
+        QueueDirection(dir_left);
+    }
+    else if (IsKeyPressed(KEY_UP)) {
+        QueueDirection(dir_up);
+    }
+    else if (IsKeyPressed(KEY_DOWN)) {
+        QueueDirection(dir_down);
+    }
+}
+
+bool Snake::QueueDirection(direction new_direction) {
+    constexpr size_t max_queued_turns = 2;
+    if (body.empty() || input_queue.size() >= max_queued_turns) {
+        return false;
+    }
+
     direction current_direction = input_queue.empty() ? snake_move : input_queue.back();
-    if (IsKeyPressed(KEY_RIGHT) && current_direction != dir_left && current_direction != dir_right){
-        input_queue.push_back(dir_right);
+    bool same_axis =
+        (new_direction == dir_left || new_direction == dir_right) ==
+        (current_direction == dir_left || current_direction == dir_right);
+    if (same_axis) {
+        return false;
     }
-    else if (IsKeyPressed(KEY_LEFT) && current_direction != dir_right && current_direction != dir_left) {
-        input_queue.push_back(dir_left);
-    }
-    else if (IsKeyPressed(KEY_UP) && current_direction != dir_down && current_direction != dir_up){
-        input_queue.push_back(dir_up);
-    }
-    else if (IsKeyPressed(KEY_DOWN) && current_direction != dir_up && current_direction != dir_down) {
-        input_queue.push_back(dir_down);
-    }
+
+    input_queue.push_back(new_direction);
+    return true;
 }
 
 void Snake::MoveSnake() {
@@ -199,6 +242,10 @@ void Snake::Grow() {
     body.push_back(body.back());
 }
 
+bool Snake::IsAlive() const {
+    return body.size() >= 3;
+}
+
 void Snake::SetSpeedBoost(bool active, float multiplier) {
     if (multiplier <= 1.0f) {
         move_interval = normal_move_interval;
@@ -206,6 +253,10 @@ void Snake::SetSpeedBoost(bool active, float multiplier) {
     }
 
     move_interval = active ? normal_move_interval / multiplier : normal_move_interval;
+}
+
+void Snake::SetTint(Color tint) {
+    snake_tint = tint;
 }
 
 // snakestate snake::CheckSnakeState(gamestate &gamestate, food &food) {

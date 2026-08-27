@@ -29,6 +29,7 @@ class Food: public GameObject {
         void ResetScore();
         void SetFoodPosition(Snake& snake);
         void SetFoodPosition(Snake& snake, const std::vector<bool>& wall_cells);
+        void SetFoodPosition(Snake& first_snake, Snake& second_snake, const std::vector<bool>& wall_cells);
         void Draw();
         void Update();
         void OnSnakeEnter(Snake& snake) override;

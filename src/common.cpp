@@ -1,5 +1,7 @@
 #include "include/common.h"
 
+// Use whole-number values to keep pixel-art edges sharp (1 = 640x480, 2 = 1280x960).
+int game_scale = 3;
 int cellsize = 16;
 int cellcount_width = 40;
 int cellcount_height = 25;

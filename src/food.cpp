@@ -97,6 +97,16 @@ void Food::SetFoodPosition(Snake& snake, const std::vector<bool>& wall_cells) {
     ResetScore();
 }
 
+void Food::SetFoodPosition(Snake& first_snake, Snake& second_snake, const std::vector<bool>& wall_cells) {
+    position = RandomPosition();
+    while(CollideSnakePosition(first_snake) ||
+          CollideSnakePosition(second_snake) ||
+          CollideWallPosition(wall_cells)) {
+        position = RandomPosition();
+    }
+    ResetScore();
+}
+
 void Food::Draw() {
     DrawRectangleLines((position.x - 1) * cellsize, (position.y - 1) * cellsize, cellsize * 3, cellsize * 3, darkGreen);
     if (food_sprite != nullptr && food_sprite->id != 0) {

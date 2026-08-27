@@ -8,6 +8,7 @@
 
 
 const Color darkGreen = {20, 160, 133, 255};
+extern int game_scale;
 extern int cellsize;
 extern int cellcount_width;
 extern int cellcount_height;
