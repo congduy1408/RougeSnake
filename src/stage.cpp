@@ -1,5 +1,7 @@
 #include "include/stage.h"
 
+#include <cstddef>
+
 void StageProgress::Reset() {
     stage_index = 0;
     apple_count = 0;
@@ -43,6 +45,18 @@ void StageProgress::Advance() {
     banner_remaining = banner_duration;
 }
 
+void StageProgress::SetFoodGoalForStage(int stage_index, int food_goal) {
+    if (stage_index < 0 || food_goal < 1) {
+        return;
+    }
+
+    if (static_cast<std::size_t>(stage_index) >= food_goals_by_stage.size()) {
+        food_goals_by_stage.resize(static_cast<std::size_t>(stage_index) + 1,
+                                  default_food_goal);
+    }
+    food_goals_by_stage[stage_index] = food_goal;
+}
+
 int StageProgress::GetStageIndex() const {
     return stage_index;
 }
@@ -52,7 +66,10 @@ int StageProgress::GetAppleCount() const {
 }
 
 int StageProgress::GetFoodGoal() const {
-    return initial_food_goal + stage_index * food_goal_increase;
+    if (stage_index >= 0 && static_cast<std::size_t>(stage_index) < food_goals_by_stage.size()) {
+        return food_goals_by_stage[stage_index];
+    }
+    return default_food_goal;
 }
 
 bool StageProgress::IsKeyActive() const {

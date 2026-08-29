@@ -65,6 +65,11 @@ void game::InitGameObject() {
     stage_progress.Reset();
     falling_rocks.clear();
     next_rock_spawn_time = 0.0;
+    speed_boost_item_active = false;
+    next_speed_boost_item_spawn_time = 0.0;
+    speed_boost_item_expire_at = 0.0;
+    speed_boost_effect_end_time = 0.0;
+    ScheduleNextSpeedBoostItem();
     screen_shake_offset = Vector2{0.0f, 0.0f};
     screen_shake_remaining = 0.0f;
     InitGround();
@@ -112,6 +117,7 @@ void game::Draw() {
             spawn_snake.Draw();
             DrawEnemies();
             spawn_food.Draw();
+            DrawSpeedBoostItem();
             for (const FallingRock& rock : falling_rocks) {
                 rock.Draw();
             }
@@ -149,11 +155,12 @@ void game::Update() {
             if (state.currentScreen == GAMEOVER) {
                 break;
             }
+            UpdateSpeedBoostItem();
             if (!spawn_snake.IsAlive()) {
                 state.currentScreen = GAMEOVER;
                 break;
             }
-            spawn_snake.SetSpeedBoost(IsKeyDown(KEY_X));
+            spawn_snake.SetSpeedBoost(IsKeyDown(KEY_X) || GetTime() < speed_boost_effect_end_time);
             spawn_snake.ReadInput();
             bool player_moved = FixUpdate(spawn_snake.move_interval, last_get_time);
 
@@ -181,6 +188,10 @@ void game::Update() {
             }
 
             if (player_moved) {
+                if (speed_boost_item_active && !spawn_snake.body.empty() &&
+                    Vector2Equals(spawn_snake.body.front().position, speed_boost_item_position)) {
+                    CollectSpeedBoostItem();
+                }
                 spawn_food.Update();
                 if (SnakeCollision(spawn_snake, spawn_food)) {
                     HandlePlayerFoodCollision();
@@ -723,6 +734,71 @@ void game::UpdateRocks() {
     ScheduleNextRock();
 }
 
+void game::UpdateSpeedBoostItem() {
+    double current_time = GetTime();
+    if (speed_boost_item_active && current_time >= speed_boost_item_expire_at) {
+        speed_boost_item_active = false;
+    }
+
+    if (!speed_boost_item_active && current_time >= next_speed_boost_item_spawn_time) {
+        TrySpawnSpeedBoostItem();
+        ScheduleNextSpeedBoostItem();
+    }
+}
+
+void game::ScheduleNextSpeedBoostItem() {
+    float interval = speed_boost_item_spawn_interval;
+    if (interval < 0.1f) {
+        interval = 0.1f;
+    }
+    next_speed_boost_item_spawn_time = GetTime() + interval;
+}
+
+int game::GetSpeedBoostItemSpawnChance() const {
+    int chance = speed_boost_item_base_spawn_chance_percent;
+    if (speed_boost_item_combo_size > 0 && combo_counter > 0) {
+        chance += (combo_counter / speed_boost_item_combo_size) *
+                  speed_boost_item_combo_chance_percent;
+    }
+    return std::max(0, std::min(chance, 100));
+}
+
+void game::TrySpawnSpeedBoostItem() {
+    if (GetRandomValue(1, 100) > GetSpeedBoostItemSpawnChance()) {
+        return;
+    }
+
+    constexpr int max_spawn_attempts = 100;
+    for (int attempt = 0; attempt < max_spawn_attempts; attempt++) {
+        Vector2 position = {
+            static_cast<float>(GetRandomValue(1, cellcount_width - 2)),
+            static_cast<float>(GetRandomValue(1, cellcount_height - 2))
+        };
+        if (IsWallCell(position) || IsRockCell(position, false) || IsAnySnakeCell(position) ||
+            Vector2Equals(position, spawn_food.GetPosition())) {
+            continue;
+        }
+
+        speed_boost_item_position = position;
+        speed_boost_item_active = true;
+        float expire_time = speed_boost_item_expire_time;
+        if (expire_time < 0.1f) {
+            expire_time = 0.1f;
+        }
+        speed_boost_item_expire_at = GetTime() + expire_time;
+        return;
+    }
+}
+
+void game::CollectSpeedBoostItem() {
+    speed_boost_item_active = false;
+    float duration = speed_boost_effect_duration;
+    if (duration < 0.0f) {
+        duration = 0.0f;
+    }
+    speed_boost_effect_end_time = GetTime() + duration;
+}
+
 bool game::SpawnRockWave(int maximum_wave_size) {
     int falling_count = 0;
     for (const FallingRock& rock : falling_rocks) {
@@ -931,6 +1007,22 @@ void game::DrawMainMenuBackground() {
                              static_cast<float>(screenWidth),
                              static_cast<float>(screenHeight)};
     DrawTexturePro(game_sprite, source, destination, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
+}
+
+void game::DrawSpeedBoostItem() {
+    if (!speed_boost_item_active || game_sprite.id == 0) {
+        return;
+    }
+
+    Rectangle source = {48.0f, 32.0f, 16.0f, 16.0f};
+    Rectangle destination = {
+        speed_boost_item_position.x * cellsize + cellsize / 2.0f,
+        speed_boost_item_position.y * cellsize + cellsize / 2.0f,
+        static_cast<float>(cellsize),
+        static_cast<float>(cellsize)
+    };
+    Vector2 origin = {destination.width / 2.0f, destination.height / 2.0f};
+    DrawTexturePro(game_sprite, source, destination, origin, 0.0f, WHITE);
 }
 
 void game::DrawGround() {
