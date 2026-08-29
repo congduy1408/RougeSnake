@@ -1,10 +1,11 @@
 #include "include/rock.h"
 
 FallingRock::FallingRock(Vector2 start_position, const Texture2D& rock_sprite,
-                         float warning_time, float fall_time, float lifetime)
+                         float shake_time, float warning_time,
+                         float fall_time, float lifetime)
     : position(start_position),
       sprite(&rock_sprite),
-      state_remaining(warning_time),
+      state_remaining(shake_time),
       warning_duration(warning_time),
       fall_duration(fall_time),
       settled_duration(lifetime) {
@@ -17,6 +18,10 @@ bool FallingRock::Update(float delta_time) {
     }
 
     switch (state) {
+        case RockState::Shaking:
+            state = RockState::Warning;
+            state_remaining = warning_duration;
+            break;
         case RockState::Warning:
             state = RockState::Falling;
             state_remaining = fall_duration;
@@ -57,6 +62,15 @@ Vector2 FallingRock::GetPosition() const {
 
 RockState FallingRock::GetState() const {
     return state;
+}
+
+bool FallingRock::ShouldStartShake() {
+    if (shake_started || state != RockState::Shaking) {
+        return false;
+    }
+
+    shake_started = true;
+    return true;
 }
 
 bool FallingRock::IsSolid() const {

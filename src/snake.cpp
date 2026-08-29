@@ -16,8 +16,8 @@ Snake::~Snake() {
     }
 }
 
-void Snake::Reset(Vector2 head_position, direction start_direction) {
-    init_length = 3;
+void Snake::Reset(Vector2 head_position, direction start_direction, int start_length) {
+    init_length = start_length < 3 ? 3 : start_length;
     move_interval = normal_move_interval;
     snake_move = start_direction;
     input_queue.clear();

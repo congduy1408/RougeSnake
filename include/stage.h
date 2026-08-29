@@ -8,7 +8,8 @@ class StageProgress {
 
         void Reset();
         void Update(float delta_time);
-        bool RecordAppleEaten();
+        bool RecordAppleEaten(bool activate_key_at_goal = true);
+        void ActivateKey();
         void Advance();
         int GetStageIndex() const;
         int GetAppleCount() const;

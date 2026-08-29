@@ -1,23 +1,29 @@
 #include "include/common.h"
 #include "include/snake.h"
 #include "include/enemy_snake.h"
+#include "include/elite_enemy.h"
+#include "include/first_boss.h"
 #include "include/food.h"
 #include "include/wall.h"
 #include "include/gamestate.h"
 #include "include/rock.h"
 #include "include/stage.h"
 
+#include <memory>
+
 class game {
     public:
-        game();
+        explicit game(int debug_start_stage = 0);
         ~game();
         game(const game&) = delete;
         game& operator=(const game&) = delete;
         gamestate state;
         Snake spawn_snake;
-        EnemySnake enemy_snake;
         Food spawn_food;
         StageProgress stage_progress;
+        std::vector<std::unique_ptr<EnemySnake>> common_enemies;
+        std::unique_ptr<EliteEnemy> elite_enemy;
+        std::unique_ptr<FirstBoss> boss_enemy;
         std::vector<Brick> wall_bricks;
         std::vector<bool> wall_cells;
         std::vector<FallingRock> falling_rocks;
@@ -34,6 +40,14 @@ class game {
         float rock_spawn_interval_max = 10.0f;
         int max_falling_rocks = 10;
         int max_rocks_on_map = 20;
+        float rock_screen_shake_duration = 0.6f;
+        int rock_screen_shake_intensity = 3;
+        int stage_three_common_enemy_count = 2;
+        int boss_rock_enemy_drop_count = 2;
+        int boss_rock_enemy_stage_max = 4;
+        int elite_spawn_progress_percent = 75;
+        int elite_min_length = 5;
+        int elite_max_length = 10;
         double last_get_time = 0.0;
     void InitGameObject();
     void Draw();
@@ -48,21 +62,29 @@ class game {
     int GetFoodScoreWithCombo(int food_score);
     private:
         Texture2D game_sprite = {};
+        int debug_start_stage = 0;
         int high_score = 0;
         std::string high_score_path;
         std::vector<direction> ground_directions;
         std::vector<Vector2> door_positions;
         double next_rock_spawn_time = 0.0;
+        Vector2 screen_shake_offset = {};
+        float screen_shake_remaining = 0.0f;
+        bool elite_spawned = false;
         bool score_popup_active = false;
         Vector2 score_popup_position = {};
         int score_popup_value = 0;
         float score_popup_remaining = 0.0f;
         float score_popup_duration = 0.8f;
         void DrawCenteredText(const char* text, int y, int font_size, Color color);
+        bool IsBossStage(int stage_index) const;
+        int GetBossStageNumber(int stage_index) const;
+        int CountActiveSupportEnemies() const;
         void LoadHighScore();
         void UpdateHighScore();
         void SaveHighScore();
         void InitGround();
+        void DrawMainMenuBackground();
         void DrawGround();
         void DrawDoors();
         void DrawStageBanner();
@@ -71,16 +93,35 @@ class game {
         void UpdateScorePopup();
         void DrawScorePopup();
         int FindBodyCollisionIndex(const Snake& moving_snake, const Snake& target_snake);
+        void DrawEnemies();
+        bool UpdateEnemies(const std::vector<bool>& blocked_cells);
         void HandleCrossSnakeCollisions();
+        void HandleCollisionWithEnemy(EnemySnake& enemy, bool drops_key);
+        void HandleEnemyDeath(EnemySnake& enemy, bool killed_by_player, bool drops_key,
+                              int reward_length = 0);
+        void RewardEnemyKill(int enemy_length, Vector2 position);
+        void DropStageKey(Vector2 position);
+        bool SpawnCommonEnemy();
+        void SpawnCommonEnemies(int count);
+        bool SpawnEliteEnemy(bool trigger_rock_wave = true);
+        void SpawnFirstBoss();
+        bool FindEnemySpawn(int length, direction start_direction, Vector2& position) const;
+        bool IsAnySnakeCell(Vector2 position) const;
+        void CheckEliteSpawnProgress();
+        void SpawnBossRockEnemies();
         void ApplyPlayerCutPenalty(int removed_body_count, Vector2 popup_position);
         void HandlePlayerFoodCollision();
         void AdvanceStage();
         void InitDoors();
         void UpdateRocks();
+        bool SpawnRockWave(int maximum_wave_size);
+        void StartScreenShake();
+        void UpdateScreenShake(float delta_time);
         bool SpawnRock();
         void ScheduleNextRock();
         void HandleRockImpact(Vector2 position);
         bool IsRockCell(Vector2 position, bool solid_only) const;
         std::vector<bool> BuildBlockedCells() const;
         void RespawnFood();
+        void ApplyDebugStartStage();
 };

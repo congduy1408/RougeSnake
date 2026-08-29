@@ -1,11 +1,13 @@
 #include "include/enemy_snake.h"
 
-void EnemySnake::Reset(Vector2 head_position, direction start_direction) {
-    snake.Reset(head_position, start_direction);
+void EnemySnake::Reset(Vector2 head_position, direction start_direction, int start_length) {
+    snake.Reset(head_position, start_direction, start_length);
     snake.SetTint(Color{255, 120, 90, 255});
     snake.SetSpeedBoost(false);
     alive = true;
     boost_moves_remaining = 0;
+    last_death_position = head_position;
+    last_death_length = start_length;
     last_move_time = GetTime();
 }
 
@@ -29,7 +31,14 @@ void EnemySnake::Draw() {
     }
 }
 
+void EnemySnake::SetTarget(Vector2, bool) {
+}
+
 void EnemySnake::Kill() {
+    if (!snake.body.empty()) {
+        last_death_position = snake.body.front().position;
+        last_death_length = static_cast<int>(snake.body.size());
+    }
     alive = false;
     snake.body.clear();
 }
@@ -44,6 +53,14 @@ Snake& EnemySnake::GetSnake() {
 
 const Snake& EnemySnake::GetSnake() const {
     return snake;
+}
+
+Vector2 EnemySnake::GetLastDeathPosition() const {
+    return last_death_position;
+}
+
+int EnemySnake::GetLastDeathLength() const {
+    return last_death_length;
 }
 
 bool EnemySnake::IsMoveReady() {

@@ -28,7 +28,8 @@ class Snake {
         ~Snake();
         Snake(const Snake&) = delete;
         Snake& operator=(const Snake&) = delete;
-        void Reset(Vector2 head_position = Vector2{10, 15}, direction start_direction = dir_right);
+        void Reset(Vector2 head_position = Vector2{10, 15}, direction start_direction = dir_right,
+                   int start_length = 3);
         void Draw();
         int TailCut(int cut_index);
         void ReadInput();

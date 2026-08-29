@@ -3,6 +3,8 @@
 #include "include/food.h"
 #include "include/game.h"
 
+#include <cstdlib>
+
 
 void AlignString(char *text, int fontSize, int posX, int posY, Color color) {
     // align the print point of text to center of string/ top left, top right
@@ -11,8 +13,27 @@ void AlignString(char *text, int fontSize, int posX, int posY, Color color) {
     DrawText(text, posX + textLength/2, posY + fontSize/2, fontSize, color);
 }
 
-int main() 
+int main(int argc, char** argv)
 {
+    int debug_start_stage = 0;
+    for (int i = 1; i < argc; i++) {
+        const char* argument = argv[i];
+        if (argument == nullptr) {
+            continue;
+        }
+
+        if (TextIsEqual(argument, "--stage") && i + 1 < argc) {
+            debug_start_stage = std::atoi(argv[++i]);
+        } else if (TextIsEqual(argument, "--help")) {
+            TraceLog(LOG_INFO, "Usage: RougeSnakeDebug.exe [--stage N]");
+            return 0;
+        }
+    }
+
+    if (debug_start_stage < 0) {
+        debug_start_stage = 0;
+    }
+
     int requested_scale = game_scale > 0 ? game_scale : 1;
     InitWindow(screenWidth, screenHeight, "Rouge Snake");
 
@@ -39,7 +60,7 @@ int main()
     SetTextureFilter(game_target.texture, TEXTURE_FILTER_POINT);
 
     {
-        game game;
+        game game(debug_start_stage);
         game.InitGameObject();
         // std::cout << spawn_food.position << std::endl;
         while (!WindowShouldClose())

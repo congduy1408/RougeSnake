@@ -18,16 +18,22 @@ void StageProgress::Update(float delta_time) {
     }
 }
 
-bool StageProgress::RecordAppleEaten() {
+bool StageProgress::RecordAppleEaten(bool activate_key_at_goal) {
     if (key_active) {
         return false;
     }
 
-    apple_count++;
-    if (apple_count >= GetFoodGoal()) {
+    if (apple_count < GetFoodGoal()) {
+        apple_count++;
+    }
+    if (activate_key_at_goal && apple_count >= GetFoodGoal()) {
         key_active = true;
     }
     return key_active;
+}
+
+void StageProgress::ActivateKey() {
+    key_active = true;
 }
 
 void StageProgress::Advance() {
