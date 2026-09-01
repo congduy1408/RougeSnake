@@ -4,6 +4,7 @@
 
 enum class FoodType {
     Apple,
+    HighScore,
     Key
 };
 
@@ -26,6 +27,7 @@ class Food: public GameObject {
         bool IsInsideBoundary(Vector2 pos);
         bool UpdateBoundaryScore(Vector2 snake_pos);
         int GetScore();
+        int GetMaxScore() const;
         void ResetScore();
         void SetFoodPosition(Snake& snake);
         void SetFoodPosition(Snake& snake, const std::vector<bool>& wall_cells);
@@ -37,4 +39,5 @@ class Food: public GameObject {
         const Texture2D* food_sprite = nullptr;
         FoodType food_type = FoodType::Apple;
         Rectangle GetSpriteSource() const;
+        int GetBaseScore() const;
 };

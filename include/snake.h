@@ -32,13 +32,14 @@ class Snake {
                    int start_length = 3);
         void Draw();
         int TailCut(int cut_index);
-        void ReadInput();
-        bool QueueDirection(direction new_direction);
+        void ReadInput(bool invert_controls = false, bool allow_opposite_direction = false);
+        bool QueueDirection(direction new_direction, bool allow_opposite_direction = false);
         void MoveSnake();
         // snakestate CheckSnakeState(gamestate &gamestate, food &food);
         int CheckSnakeState();
         void Grow();
         bool IsAlive() const;
+        void SetMovementSpeedMultiplier(float multiplier);
         void SetSpeedBoost(bool active, float multiplier = 1.5f);
         void SetTint(Color tint);
 
@@ -50,6 +51,7 @@ class Snake {
         float normal_move_interval = 0.1f;
         Color snake_tint = WHITE;
         std::vector<direction> input_queue;
+        void ReverseDirection(direction new_direction);
         Color GetDrawTint() const;
         void DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction dir);
 };

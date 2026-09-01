@@ -1,5 +1,7 @@
 #include "include/snake.h"
 
+#include <algorithm>
+
 Snake::Snake()
 {
     body.reserve(300);
@@ -158,26 +160,26 @@ int Snake::TailCut(int cut_index) {
     return 0;
 }
 
-void Snake::ReadInput() {
+void Snake::ReadInput(bool invert_controls, bool allow_opposite_direction) {
     if (body.empty()) {
         return;
     }
 
     if (IsKeyPressed(KEY_RIGHT)) {
-        QueueDirection(dir_right);
+        QueueDirection(invert_controls ? dir_left : dir_right, allow_opposite_direction);
     }
     else if (IsKeyPressed(KEY_LEFT)) {
-        QueueDirection(dir_left);
+        QueueDirection(invert_controls ? dir_right : dir_left, allow_opposite_direction);
     }
     else if (IsKeyPressed(KEY_UP)) {
-        QueueDirection(dir_up);
+        QueueDirection(invert_controls ? dir_down : dir_up, allow_opposite_direction);
     }
     else if (IsKeyPressed(KEY_DOWN)) {
-        QueueDirection(dir_down);
+        QueueDirection(invert_controls ? dir_up : dir_down, allow_opposite_direction);
     }
 }
 
-bool Snake::QueueDirection(direction new_direction) {
+bool Snake::QueueDirection(direction new_direction, bool allow_opposite_direction) {
     constexpr size_t max_queued_turns = 2;
     if (body.empty() || input_queue.size() >= max_queued_turns) {
         return false;
@@ -188,11 +190,47 @@ bool Snake::QueueDirection(direction new_direction) {
         (new_direction == dir_left || new_direction == dir_right) ==
         (current_direction == dir_left || current_direction == dir_right);
     if (same_axis) {
+        if (allow_opposite_direction && input_queue.empty() && new_direction != current_direction) {
+            ReverseDirection(new_direction);
+            return true;
+        }
         return false;
     }
 
     input_queue.push_back(new_direction);
     return true;
+}
+
+void Snake::ReverseDirection(direction new_direction) {
+    if (body.empty()) {
+        return;
+    }
+
+    std::reverse(body.begin(), body.end());
+    turn_point_list.clear();
+    input_queue.clear();
+    snake_move = new_direction;
+
+    for (size_t i = 0; i < body.size(); i++) {
+        body[i].is_turn = false;
+        if (i + 1 < body.size()) {
+            Vector2 forward = Vector2Subtract(body[i].position, body[i + 1].position);
+            if (forward.x > 0.0f) {
+                body[i].cur_dir = dir_right;
+            } else if (forward.x < 0.0f) {
+                body[i].cur_dir = dir_left;
+            } else if (forward.y > 0.0f) {
+                body[i].cur_dir = dir_down;
+            } else {
+                body[i].cur_dir = dir_up;
+            }
+        } else {
+            body[i].cur_dir = body[i - 1].cur_dir;
+        }
+        body[i].pre_dir = body[i].cur_dir;
+    }
+    body.front().cur_dir = new_direction;
+    body.front().pre_dir = new_direction;
 }
 
 void Snake::MoveSnake() {
@@ -246,13 +284,12 @@ bool Snake::IsAlive() const {
     return body.size() >= 3;
 }
 
-void Snake::SetSpeedBoost(bool active, float multiplier) {
-    if (multiplier <= 1.0f) {
-        move_interval = normal_move_interval;
-        return;
-    }
+void Snake::SetMovementSpeedMultiplier(float multiplier) {
+    move_interval = multiplier > 0.0f ? normal_move_interval / multiplier : normal_move_interval;
+}
 
-    move_interval = active ? normal_move_interval / multiplier : normal_move_interval;
+void Snake::SetSpeedBoost(bool active, float multiplier) {
+    SetMovementSpeedMultiplier(active ? multiplier : 1.0f);
 }
 
 void Snake::SetTint(Color tint) {

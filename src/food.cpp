@@ -26,6 +26,8 @@ Rectangle Food::GetSpriteSource() const {
     switch (food_type) {
         case FoodType::Key:
             return Rectangle{0.0f, 32.0f, 16.0f, 16.0f};
+        case FoodType::HighScore:
+            return Rectangle{32.0f, 32.0f, 16.0f, 16.0f};
         case FoodType::Apple:
         default:
             return Rectangle{16.0f, 32.0f, 16.0f, 16.0f};
@@ -76,9 +78,17 @@ int Food::GetScore() {
     return score;
 }
 
+int Food::GetMaxScore() const {
+    return GetBaseScore();
+}
+
 void Food::ResetScore() {
-    score = max_score;
+    score = GetBaseScore();
     snake_inside_boundary = false;
+}
+
+int Food::GetBaseScore() const {
+    return food_type == FoodType::HighScore ? 10 : max_score;
 }
 
 void Food::SetFoodPosition(Snake& snake) {

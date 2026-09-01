@@ -8,6 +8,7 @@
 #include "include/gamestate.h"
 #include "include/rock.h"
 #include "include/stage.h"
+#include "include/item.h"
 
 #include <memory>
 
@@ -48,12 +49,10 @@ class game {
         int elite_spawn_progress_percent = 75;
         int elite_min_length = 5;
         int elite_max_length = 10;
-        float speed_boost_item_spawn_interval = 15.0f;
-        float speed_boost_item_expire_time = 8.0f;
-        int speed_boost_item_base_spawn_chance_percent = 10;
-        int speed_boost_item_combo_size = 5;
-        int speed_boost_item_combo_chance_percent = 5;
-        float speed_boost_effect_duration = 5.0f;
+        int high_score_food_base_spawn_chance_percent = 10;
+        int high_score_food_combo_size = 5;
+        int high_score_food_combo_chance_percent = 10;
+        std::vector<ItemDefinition> item_definitions;
         double last_get_time = 0.0;
     void InitGameObject();
     void Draw();
@@ -74,11 +73,9 @@ class game {
         std::vector<direction> ground_directions;
         std::vector<Vector2> door_positions;
         double next_rock_spawn_time = 0.0;
-        double next_speed_boost_item_spawn_time = 0.0;
-        double speed_boost_item_expire_at = 0.0;
-        double speed_boost_effect_end_time = 0.0;
-        Vector2 speed_boost_item_position = {};
-        bool speed_boost_item_active = false;
+        std::vector<double> item_next_spawn_times;
+        std::vector<ActiveItem> active_items;
+        std::vector<ActiveItemEffect> active_item_effects;
         Vector2 screen_shake_offset = {};
         float screen_shake_remaining = 0.0f;
         bool elite_spawned = false;
@@ -96,7 +93,7 @@ class game {
         void SaveHighScore();
         void InitGround();
         void DrawMainMenuBackground();
-        void DrawSpeedBoostItem();
+        void DrawItems();
         void DrawGround();
         void DrawDoors();
         void DrawStageBanner();
@@ -126,11 +123,19 @@ class game {
         void AdvanceStage();
         void InitDoors();
         void UpdateRocks();
-        void UpdateSpeedBoostItem();
-        void ScheduleNextSpeedBoostItem();
-        void TrySpawnSpeedBoostItem();
-        int GetSpeedBoostItemSpawnChance() const;
-        void CollectSpeedBoostItem();
+        void InitializeDefaultItems();
+        void ResetItems();
+        void UpdateItems();
+        void DrawItem(const ActiveItem& item);
+        void ScheduleNextItem(std::size_t definition_index);
+        void TrySpawnItem(std::size_t definition_index);
+        int GetItemSpawnChance(const ItemDefinition& definition) const;
+        bool IsItemCell(Vector2 position) const;
+        void CollectItems();
+        void ApplyItemEffect(const ItemDefinition& definition);
+        void UpdateItemEffects();
+        bool HasItemEffect(ItemEffectType effect_type) const;
+        float GetMovementSpeedMultiplier() const;
         bool SpawnRockWave(int maximum_wave_size);
         void StartScreenShake();
         void UpdateScreenShake(float delta_time);
@@ -139,6 +144,7 @@ class game {
         void HandleRockImpact(Vector2 position);
         bool IsRockCell(Vector2 position, bool solid_only) const;
         std::vector<bool> BuildBlockedCells() const;
+        bool ShouldSpawnHighScoreFood() const;
         void RespawnFood();
         void ApplyDebugStartStage();
 };
