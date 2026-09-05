@@ -9,7 +9,7 @@ class Brick: public GameObject {
         Brick(Vector2 position, const Texture2D& sprite) :
         GameObject(position), wall_sprite(&sprite), sprite_direction(GetRandomDirection()) {};
         void SetBrickPos(Vector2 pos);
-        void Draw();
+        void Draw(float sprite_x_offset = 0.0f);
         void Update();
         void OnSnakeEnter(Snake& snake) override;
     private:

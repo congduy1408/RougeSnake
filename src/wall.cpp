@@ -6,12 +6,12 @@ void Brick::SetBrickPos(Vector2 pos) {
     SetPosition(pos);
 }
 
-void Brick::Draw() {
+void Brick::Draw(float sprite_x_offset) {
     if (wall_sprite == nullptr || wall_sprite->id == 0) {
         return;
     }
 
-    Rectangle draw_sprite = Rectangle{0.0f, 16.0f, 16.0f, 16.0f};
+    Rectangle draw_sprite = Rectangle{sprite_x_offset, 16.0f, 16.0f, 16.0f};
     Rectangle draw_pos = 
     {   position.x * cellsize + cellsize/2, 
         position.y * cellsize + cellsize/2,

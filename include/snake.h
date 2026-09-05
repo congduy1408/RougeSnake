@@ -49,7 +49,7 @@ class Snake {
         int frame_counter = 0;
         int flip_frame = 1;
         float normal_move_interval = 0.1f;
-        Color snake_tint = WHITE;
+        Color snake_tint = WHITE; 
         std::vector<direction> input_queue;
         void ReverseDirection(direction new_direction);
         Color GetDrawTint() const;

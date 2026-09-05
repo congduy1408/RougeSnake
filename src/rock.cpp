@@ -11,6 +11,18 @@ FallingRock::FallingRock(Vector2 start_position, const Texture2D& rock_sprite,
       settled_duration(lifetime) {
 }
 
+FallingRock::FallingRock(Vector2 start_position, const Texture2D& item_sprite,
+                         Rectangle item_sprite_source, std::size_t definition_index,
+                         float shake_time, float warning_time, float fall_time)
+    : position(start_position),
+      sprite(&item_sprite),
+      state_remaining(shake_time),
+      warning_duration(warning_time),
+      fall_duration(fall_time),
+      sprite_source(item_sprite_source),
+      item_definition_index(definition_index) {
+}
+
 bool FallingRock::Update(float delta_time) {
     state_remaining -= delta_time;
     if (state_remaining > 0.0f) {
@@ -64,6 +76,14 @@ RockState FallingRock::GetState() const {
     return state;
 }
 
+bool FallingRock::IsItemDrop() const {
+    return item_definition_index != static_cast<std::size_t>(-1);
+}
+
+std::size_t FallingRock::GetItemDefinitionIndex() const {
+    return item_definition_index;
+}
+
 bool FallingRock::ShouldStartShake() {
     if (shake_started || state != RockState::Shaking) {
         return false;
@@ -74,7 +94,7 @@ bool FallingRock::ShouldStartShake() {
 }
 
 bool FallingRock::IsSolid() const {
-    return state == RockState::Settled;
+    return state == RockState::Settled && !IsItemDrop();
 }
 
 bool FallingRock::IsExpired() const {
@@ -102,8 +122,8 @@ void FallingRock::DrawRock(float vertical_offset) const {
     };
     Vector2 origin = {destination.width / 2.0f, destination.height / 2.0f};
     if (sprite != nullptr && sprite->id != 0) {
-        Rectangle source = {0.0f, 16.0f, 16.0f, 16.0f};
-        DrawTexturePro(*sprite, source, destination, origin, 0.0f, Color{170, 160, 150, 255});
+        Color tint = IsItemDrop() ? WHITE : Color{170, 160, 150, 255};
+        DrawTexturePro(*sprite, sprite_source, destination, origin, 0.0f, tint);
         return;
     }
 

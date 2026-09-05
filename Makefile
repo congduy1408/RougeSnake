@@ -201,7 +201,8 @@ LDFLAGS +=
 ifeq ($(BUILD_MODE),DEBUG)
     CFLAGS += -g -O0
 else
-    CFLAGS += -Os -ffunction-sections -fdata-sections -s
+    CFLAGS += -Os -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables \
+              -ffunction-sections -fdata-sections -s
     LDFLAGS += -Wl,--gc-sections -s
     ifeq ($(PLATFORM_OS),WINDOWS)
         LDFLAGS += -static -static-libgcc -static-libstdc++

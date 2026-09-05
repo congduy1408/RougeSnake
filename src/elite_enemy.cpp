@@ -27,6 +27,19 @@ void EliteEnemy::SetTarget(Vector2 new_target_position, bool new_target_availabl
     }
 }
 
+void EliteEnemy::SetAvoidPosition(Vector2 new_avoid_position, bool should_avoid_position) {
+    bool avoid_target_changed =
+        avoid_position_active != should_avoid_position ||
+        (should_avoid_position && !Vector2Equals(avoid_position, new_avoid_position));
+    avoid_position = new_avoid_position;
+    avoid_position_active = should_avoid_position;
+    if (avoid_target_changed) {
+        state = EliteEnemyState::DetectFood;
+        route.clear();
+        route_index = 0;
+    }
+}
+
 EliteEnemyState EliteEnemy::GetState() const {
     return state;
 }
@@ -125,7 +138,8 @@ bool EliteEnemy::PlanRoute(const std::vector<bool>& wall_cells) {
             bool is_target = next_index == target_index;
             if (previous[next_index] != -1 ||
                 (!is_target && (IsWallCell(next_position, wall_cells) ||
-                                IsOwnBodyCell(next_position)))) {
+                                IsOwnBodyCell(next_position) ||
+                                IsAvoidedCell(next_position)))) {
                 continue;
             }
             previous[next_index] = current_index;
@@ -146,7 +160,8 @@ bool EliteEnemy::PlanRoute(const std::vector<bool>& wall_cells) {
 }
 
 bool EliteEnemy::TryRandomTurn(const std::vector<bool>& wall_cells) {
-    if (random_turns_remaining <= 0 || random_turn_chance_percent <= 0 ||
+    if ((random_turns_per_target >= 0 && random_turns_remaining <= 0) ||
+        random_turn_chance_percent <= 0 ||
         GetRandomValue(1, 100) > random_turn_chance_percent) {
         return false;
     }
@@ -163,7 +178,8 @@ bool EliteEnemy::TryRandomTurn(const std::vector<bool>& wall_cells) {
     std::vector<direction> safe_options;
     for (direction option : options) {
         Vector2 next_position = GetNextPosition(snake.body.front().position, option);
-        if (!IsWallCell(next_position, wall_cells) && !IsOwnBodyCell(next_position)) {
+        if (!IsWallCell(next_position, wall_cells) && !IsOwnBodyCell(next_position) &&
+            !IsAvoidedCell(next_position)) {
             safe_options.push_back(option);
         }
     }
@@ -173,7 +189,9 @@ bool EliteEnemy::TryRandomTurn(const std::vector<bool>& wall_cells) {
 
     int selected = GetRandomValue(0, static_cast<int>(safe_options.size()) - 1);
     snake.QueueDirection(safe_options[selected]);
-    random_turns_remaining--;
+    if (random_turns_remaining > 0) {
+        random_turns_remaining--;
+    }
     return true;
 }
 
@@ -184,6 +202,10 @@ bool EliteEnemy::IsOwnBodyCell(Vector2 position) const {
         }
     }
     return false;
+}
+
+bool EliteEnemy::IsAvoidedCell(Vector2 position) const {
+    return avoid_position_active && Vector2Equals(position, avoid_position);
 }
 
 bool EliteEnemy::IsOppositeDirection(direction first, direction second) const {

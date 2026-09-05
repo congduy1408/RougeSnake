@@ -2,6 +2,7 @@
 #include "include/snake.h"
 #include "include/food.h"
 #include "include/game.h"
+#include "include/audio_system.h"
 
 #include <cstdlib>
 
@@ -16,6 +17,8 @@ void AlignString(char *text, int fontSize, int posX, int posY, Color color) {
 int main(int argc, char** argv)
 {
     int debug_start_stage = 0;
+    bool enable_music = true;
+    bool enable_sound_effects = true;
     for (int i = 1; i < argc; i++) {
         const char* argument = argv[i];
         if (argument == nullptr) {
@@ -24,8 +27,13 @@ int main(int argc, char** argv)
 
         if (TextIsEqual(argument, "--stage") && i + 1 < argc) {
             debug_start_stage = std::atoi(argv[++i]);
+        } else if (TextIsEqual(argument, "--no-music")) {
+            enable_music = false;
+        } else if (TextIsEqual(argument, "--no-sfx")) {
+            enable_sound_effects = false;
         } else if (TextIsEqual(argument, "--help")) {
-            TraceLog(LOG_INFO, "Usage: RougeSnakeDebug.exe [--stage N]");
+            TraceLog(LOG_INFO,
+                     "Usage: RougeSnake.exe [--stage N] [--no-music] [--no-sfx]");
             return 0;
         }
     }
@@ -36,6 +44,7 @@ int main(int argc, char** argv)
 
     int requested_scale = game_scale > 0 ? game_scale : 1;
     InitWindow(screenWidth, screenHeight, "Rouge Snake");
+    InitAudioDevice();
 
     int monitor = GetCurrentMonitor();
     int available_width = GetMonitorWidth(monitor);
@@ -59,8 +68,13 @@ int main(int argc, char** argv)
     RenderTexture2D game_target = LoadRenderTexture(screenWidth, screenHeight);
     SetTextureFilter(game_target.texture, TEXTURE_FILTER_POINT);
 
+    AudioSystem audio;
+    audio.Initialize();
+    audio.SetMusicEnabled(enable_music);
+    audio.SetSoundEffectsEnabled(enable_sound_effects);
+
     {
-        game game(debug_start_stage);
+        game game(audio, debug_start_stage);
         game.InitGameObject();
         // std::cout << spawn_food.position << std::endl;
         while (!WindowShouldClose())
@@ -93,6 +107,8 @@ int main(int argc, char** argv)
     }
 
     UnloadRenderTexture(game_target);
+    audio.Shutdown();
+    CloseAudioDevice();
     CloseWindow();
 }
 

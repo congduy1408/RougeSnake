@@ -5,6 +5,7 @@
 enum class FoodType {
     Apple,
     HighScore,
+    Moving,
     Key
 };
 
@@ -33,11 +34,14 @@ class Food: public GameObject {
         void SetFoodPosition(Snake& snake, const std::vector<bool>& wall_cells);
         void SetFoodPosition(Snake& first_snake, Snake& second_snake, const std::vector<bool>& wall_cells);
         void Draw();
-        void Update();
+        void Update() override;
+        void Update(const std::vector<bool>& blocked_cells);
         void OnSnakeEnter(Snake& snake) override;
     private:
         const Texture2D* food_sprite = nullptr;
         FoodType food_type = FoodType::Apple;
+        double next_move_time = 0.0;
         Rectangle GetSpriteSource() const;
         int GetBaseScore() const;
+        void ScheduleNextMove();
 };

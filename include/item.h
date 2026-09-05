@@ -22,6 +22,7 @@ struct ItemDefinition {
     int combo_spawn_chance_percent = 5;
     float effect_duration = 5.0f;
     float effect_value = 1.5f;
+    bool falls_with_rocks = false;
 };
 
 struct ActiveItem {

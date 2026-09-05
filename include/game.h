@@ -1,4 +1,5 @@
 #include "include/common.h"
+#include "include/audio_system.h"
 #include "include/snake.h"
 #include "include/enemy_snake.h"
 #include "include/elite_enemy.h"
@@ -14,7 +15,7 @@
 
 class game {
     public:
-        explicit game(int debug_start_stage = 0);
+        explicit game(AudioSystem& audio_system, int debug_start_stage = 0);
         ~game();
         game(const game&) = delete;
         game& operator=(const game&) = delete;
@@ -49,9 +50,14 @@ class game {
         int elite_spawn_progress_percent = 75;
         int elite_min_length = 5;
         int elite_max_length = 10;
+        int elite_random_turn_chance_percent = 15;
+        int boss_random_turn_chance_percent = 20;
+        int boss_attack_length_threshold = 7;
         int high_score_food_base_spawn_chance_percent = 10;
         int high_score_food_combo_size = 5;
         int high_score_food_combo_chance_percent = 10;
+        int moving_food_base_spawn_chance_percent = 5;
+        int moving_food_stage_three_spawn_chance_percent = 50;
         std::vector<ItemDefinition> item_definitions;
         double last_get_time = 0.0;
     void InitGameObject();
@@ -66,6 +72,7 @@ class game {
     void UpdateComboCounter(int food_score, int food_max_score);
     int GetFoodScoreWithCombo(int food_score);
     private:
+        AudioSystem& audio;
         Texture2D game_sprite = {};
         int debug_start_stage = 0;
         int high_score = 0;
@@ -94,7 +101,7 @@ class game {
         void InitGround();
         void DrawMainMenuBackground();
         void DrawItems();
-        void DrawGround();
+        void DrawGround(float sprite_x_offset);
         void DrawDoors();
         void DrawStageBanner();
         void DrawUI();
@@ -137,6 +144,8 @@ class game {
         bool HasItemEffect(ItemEffectType effect_type) const;
         float GetMovementSpeedMultiplier() const;
         bool SpawnRockWave(int maximum_wave_size);
+        bool SpawnFallingItem(std::size_t definition_index);
+        void LandFallingItem(const FallingRock& item_drop);
         void StartScreenShake();
         void UpdateScreenShake(float delta_time);
         bool SpawnRock();
@@ -145,6 +154,7 @@ class game {
         bool IsRockCell(Vector2 position, bool solid_only) const;
         std::vector<bool> BuildBlockedCells() const;
         bool ShouldSpawnHighScoreFood() const;
+        bool ShouldSpawnMovingFood() const;
         void RespawnFood();
         void ApplyDebugStartStage();
 };

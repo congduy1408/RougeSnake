@@ -3,7 +3,8 @@
 #include <algorithm>
 #include <cstdio>
 
-game::game(int debug_start_stage_value) {
+game::game(AudioSystem& audio_system, int debug_start_stage_value)
+    : audio(audio_system) {
     debug_start_stage = debug_start_stage_value;
     game_sprite = LoadTexture("sprite/game_sprite.png");
     SetTextureFilter(game_sprite, TEXTURE_FILTER_POINT);
@@ -77,6 +78,7 @@ void game::InitGameObject() {
     spawn_food.Reset(FoodType::Apple);
     RespawnFood();
     ApplyDebugStartStage();
+    audio.PlayMusic(state.currentScreen == MAIN_MENU ? MusicId::MainMenu : MusicId::Gameplay);
     last_get_time = GetTime();
 }
 
@@ -106,9 +108,10 @@ void game::Draw() {
             shake_camera.offset = screen_shake_offset;
             shake_camera.zoom = 1.0f;
             BeginMode2D(shake_camera);
-            DrawGround();
+            float tile_sprite_offset = stage_progress.GetStageIndex() > 4 ? 48.0f : 0.0f;
+            DrawGround(tile_sprite_offset);
             for (unsigned int i=0; i<wall_bricks.size(); i++) {
-                wall_bricks[i].Draw();
+                wall_bricks[i].Draw(tile_sprite_offset);
             }
             DrawDoors();
             spawn_snake.Draw();
@@ -143,6 +146,9 @@ void game::Update() {
             if (IsKeyPressed(KEY_ENTER)  || IsKeyPressed(KEY_KP_ENTER))
             {
                 state.currentScreen = STAGE;
+                audio.PlayMusic(IsBossStage(stage_progress.GetStageIndex())
+                    ? MusicId::Boss
+                    : MusicId::Gameplay);
             }
         } break;
         case STAGE: {
@@ -153,6 +159,7 @@ void game::Update() {
                 break;
             }
             UpdateItems();
+            spawn_food.Update(BuildBlockedCells());
             if (!spawn_snake.IsAlive()) {
                 state.currentScreen = GAMEOVER;
                 break;
@@ -191,7 +198,6 @@ void game::Update() {
 
             if (player_moved) {
                 CollectItems();
-                spawn_food.Update();
                 if (SnakeCollision(spawn_snake, spawn_food)) {
                     HandlePlayerFoodCollision();
                 } else {
@@ -211,6 +217,7 @@ void game::Update() {
                 
                 InitGameObject();
                 state.currentScreen = STAGE;
+                audio.PlayMusic(MusicId::Gameplay);
             }
         } break;
         default: break;
@@ -297,7 +304,12 @@ bool game::UpdateEnemies(const std::vector<bool>& blocked_cells) {
             return;
         }
 
-        enemy.SetTarget(spawn_food.GetPosition(), true);
+        FirstBoss* boss = dynamic_cast<FirstBoss*>(&enemy);
+        if (boss != nullptr) {
+            boss->SetTargets(spawn_snake.body.front().position, spawn_food.GetPosition(), true);
+        } else {
+            enemy.SetTarget(spawn_food.GetPosition(), true);
+        }
         bool moved = enemy.Update(blocked_cells);
         any_enemy_moved = any_enemy_moved || moved;
         if (!enemy.IsAlive()) {
@@ -443,6 +455,7 @@ bool game::SpawnEliteEnemy(bool trigger_rock_wave) {
     }
 
     elite_enemy.reset(new EliteEnemy());
+    elite_enemy->random_turn_chance_percent = elite_random_turn_chance_percent;
     elite_enemy->Reset(spawn_position, start_direction, elite_length);
     elite_spawned = true;
     if (trigger_rock_wave) {
@@ -460,6 +473,8 @@ void game::SpawnFirstBoss() {
     }
 
     boss_enemy.reset(new FirstBoss());
+    boss_enemy->random_turn_chance_percent = boss_random_turn_chance_percent;
+    boss_enemy->attack_length_threshold = boss_attack_length_threshold;
     boss_enemy->Reset(spawn_position, start_direction, boss_length);
 }
 
@@ -602,6 +617,7 @@ void game::HandlePlayerFoodCollision() {
     int gained_score = GetFoodScoreWithCombo(food_score);
     state.score += gained_score;
     ShowScorePopup(eaten_position, gained_score);
+    audio.PlaySoundEffect(SoundEffectId::FoodEaten);
     spawn_snake.Grow();
 
     bool use_food_key = stage_progress.GetStageIndex() < 3;
@@ -644,14 +660,18 @@ void game::AdvanceStage() {
             SpawnCommonEnemies(stage_three_common_enemy_count);
         }
     }
+    audio.PlayMusic(IsBossStage(stage_index) ? MusicId::Boss : MusicId::Gameplay);
     RespawnFood();
 }
 
 void game::RespawnFood() {
     if (spawn_food.GetFoodType() != FoodType::Key) {
-        FoodType next_food_type = ShouldSpawnHighScoreFood()
-            ? FoodType::HighScore
-            : FoodType::Apple;
+        FoodType next_food_type = FoodType::Apple;
+        if (ShouldSpawnHighScoreFood()) {
+            next_food_type = FoodType::HighScore;
+        } else if (ShouldSpawnMovingFood()) {
+            next_food_type = FoodType::Moving;
+        }
         spawn_food.Reset(next_food_type);
     }
     std::vector<bool> blocked_cells = BuildBlockedCells();
@@ -664,6 +684,14 @@ bool game::ShouldSpawnHighScoreFood() const {
         chance += (combo_counter / high_score_food_combo_size) *
                   high_score_food_combo_chance_percent;
     }
+    chance = std::max(0, std::min(chance, 100));
+    return GetRandomValue(1, 100) <= chance;
+}
+
+bool game::ShouldSpawnMovingFood() const {
+    int chance = stage_progress.GetStageIndex() >= 3
+        ? moving_food_stage_three_spawn_chance_percent
+        : moving_food_base_spawn_chance_percent;
     chance = std::max(0, std::min(chance, 100));
     return GetRandomValue(1, 100) <= chance;
 }
@@ -722,7 +750,11 @@ void game::UpdateRocks() {
             StartScreenShake();
         }
         if (rock.Update(delta_time)) {
-            HandleRockImpact(rock.GetPosition());
+            if (rock.IsItemDrop()) {
+                LandFallingItem(rock);
+            } else {
+                HandleRockImpact(rock.GetPosition());
+            }
         }
     }
     UpdateScreenShake(delta_time);
@@ -753,6 +785,7 @@ void game::InitializeDefaultItems() {
     ItemDefinition speed_boost;
     speed_boost.effect = ItemEffectType::SpeedBoost;
     speed_boost.sprite_source = Rectangle{48.0f, 32.0f, 16.0f, 16.0f};
+    speed_boost.falls_with_rocks = true;
     item_definitions.push_back(speed_boost);
 
     ItemDefinition speed_slow;
@@ -760,6 +793,7 @@ void game::InitializeDefaultItems() {
     speed_slow.sprite_source = Rectangle{0.0f, 48.0f, 16.0f, 16.0f};
     speed_slow.effect_duration = -1.0f;
     speed_slow.effect_value = 0.5f;
+    speed_slow.falls_with_rocks = true;
     item_definitions.push_back(speed_slow);
 
     ItemDefinition invert_controls;
@@ -797,6 +831,9 @@ void game::UpdateItems() {
     UpdateItemEffects();
 
     for (std::size_t i = 0; i < item_definitions.size(); i++) {
+        if (item_definitions[i].falls_with_rocks) {
+            continue;
+        }
         bool already_spawned = std::any_of(active_items.begin(), active_items.end(),
             [i](const ActiveItem& item) { return item.definition_index == i; });
         if (!already_spawned && current_time >= item_next_spawn_times[i]) {
@@ -865,6 +902,7 @@ void game::CollectItems() {
         }
         if (item->definition_index < item_definitions.size()) {
             ApplyItemEffect(item_definitions[item->definition_index]);
+            audio.PlaySoundEffect(SoundEffectId::ItemCollected);
         }
         item = active_items.erase(item);
     }
@@ -939,6 +977,13 @@ bool game::SpawnRockWave(int maximum_wave_size) {
             break;
         }
         spawned_rock = true;
+        for (std::size_t item_index = 0; item_index < item_definitions.size(); item_index++) {
+            const ItemDefinition& item = item_definitions[item_index];
+            if (item.falls_with_rocks &&
+                GetRandomValue(1, 100) <= GetItemSpawnChance(item)) {
+                SpawnFallingItem(item_index);
+            }
+        }
     }
     return spawned_rock;
 }
@@ -979,7 +1024,7 @@ bool game::SpawnRock() {
         };
         int cell_index = static_cast<int>(position.y) * cellcount_width +
                          static_cast<int>(position.x);
-        if (wall_cells[cell_index] || IsRockCell(position, false)) {
+        if (wall_cells[cell_index] || IsRockCell(position, false) || IsItemCell(position)) {
             continue;
         }
 
@@ -988,6 +1033,51 @@ bool game::SpawnRock() {
         return true;
     }
     return false;
+}
+
+bool game::SpawnFallingItem(std::size_t definition_index) {
+    if (definition_index >= item_definitions.size() ||
+        std::any_of(active_items.begin(), active_items.end(),
+            [definition_index](const ActiveItem& item) {
+                return item.definition_index == definition_index;
+            }) ||
+        std::any_of(falling_rocks.begin(), falling_rocks.end(),
+            [definition_index](const FallingRock& falling_object) {
+                return falling_object.IsItemDrop() &&
+                       falling_object.GetItemDefinitionIndex() == definition_index;
+            })) {
+        return false;
+    }
+
+    constexpr int max_spawn_attempts = 100;
+    for (int attempt = 0; attempt < max_spawn_attempts; attempt++) {
+        Vector2 position = {
+            static_cast<float>(GetRandomValue(1, cellcount_width - 2)),
+            static_cast<float>(GetRandomValue(1, cellcount_height - 2))
+        };
+        if (IsWallCell(position) || IsRockCell(position, false) || IsAnySnakeCell(position) ||
+            IsItemCell(position) || Vector2Equals(position, spawn_food.GetPosition())) {
+            continue;
+        }
+
+        const ItemDefinition& item = item_definitions[definition_index];
+        falling_rocks.emplace_back(position, game_sprite, item.sprite_source, definition_index,
+                                   rock_screen_shake_duration, rock_warning_duration,
+                                   rock_fall_duration);
+        return true;
+    }
+    return false;
+}
+
+void game::LandFallingItem(const FallingRock& item_drop) {
+    std::size_t definition_index = item_drop.GetItemDefinitionIndex();
+    if (definition_index >= item_definitions.size() || IsItemCell(item_drop.GetPosition())) {
+        return;
+    }
+
+    float lifetime = std::max(item_definitions[definition_index].pickup_expire_time, 0.1f);
+    active_items.push_back(ActiveItem{definition_index, item_drop.GetPosition(),
+                                      GetTime() + lifetime});
 }
 
 void game::ScheduleNextRock() {
@@ -1001,6 +1091,7 @@ void game::ScheduleNextRock() {
 }
 
 void game::HandleRockImpact(Vector2 position) {
+    audio.PlaySoundEffect(SoundEffectId::RockImpact);
     if (Vector2Equals(spawn_food.GetPosition(), position)) {
         RespawnFood();
     }
@@ -1145,12 +1236,12 @@ void game::DrawItem(const ActiveItem& item) {
     DrawTexturePro(game_sprite, definition.sprite_source, destination, origin, 0.0f, WHITE);
 }
 
-void game::DrawGround() {
+void game::DrawGround(float sprite_x_offset) {
     if (game_sprite.id == 0) {
         return;
     }
 
-    Rectangle ground_sprite = {16.0f, 16.0f, 16.0f, 16.0f};
+    Rectangle ground_sprite = {16.0f + sprite_x_offset, 16.0f, 16.0f, 16.0f};
     for (int y = 0; y < cellcount_height; y++) {
         for (int x = 0; x < cellcount_width; x++) {
             int cell_index = y * cellcount_width + x;

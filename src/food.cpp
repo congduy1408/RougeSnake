@@ -11,6 +11,7 @@ void Food::SetSpriteTexture(const Texture2D& sprite) {
 
 void Food::SetFoodType(FoodType new_type) {
     food_type = new_type;
+    ScheduleNextMove();
 }
 
 FoodType Food::GetFoodType() const {
@@ -20,6 +21,7 @@ FoodType Food::GetFoodType() const {
 void Food::Reset(FoodType new_type) {
     food_type = new_type;
     ResetScore();
+    ScheduleNextMove();
 }
 
 Rectangle Food::GetSpriteSource() const {
@@ -28,6 +30,8 @@ Rectangle Food::GetSpriteSource() const {
             return Rectangle{0.0f, 32.0f, 16.0f, 16.0f};
         case FoodType::HighScore:
             return Rectangle{32.0f, 32.0f, 16.0f, 16.0f};
+        case FoodType::Moving:
+            return Rectangle{64.0f, 32.0f, 16.0f, 16.0f};
         case FoodType::Apple:
         default:
             return Rectangle{16.0f, 32.0f, 16.0f, 16.0f};
@@ -88,7 +92,13 @@ void Food::ResetScore() {
 }
 
 int Food::GetBaseScore() const {
-    return food_type == FoodType::HighScore ? 10 : max_score;
+    if (food_type == FoodType::HighScore) {
+        return 10;
+    }
+    if (food_type == FoodType::Moving) {
+        return 15;
+    }
+    return max_score;
 }
 
 void Food::SetFoodPosition(Snake& snake) {
@@ -97,6 +107,7 @@ void Food::SetFoodPosition(Snake& snake) {
         position = RandomPosition();
     }
     ResetScore();
+    ScheduleNextMove();
 }
 
 void Food::SetFoodPosition(Snake& snake, const std::vector<bool>& wall_cells) {
@@ -105,6 +116,7 @@ void Food::SetFoodPosition(Snake& snake, const std::vector<bool>& wall_cells) {
         position = RandomPosition();
     }
     ResetScore();
+    ScheduleNextMove();
 }
 
 void Food::SetFoodPosition(Snake& first_snake, Snake& second_snake, const std::vector<bool>& wall_cells) {
@@ -115,6 +127,7 @@ void Food::SetFoodPosition(Snake& first_snake, Snake& second_snake, const std::v
         position = RandomPosition();
     }
     ResetScore();
+    ScheduleNextMove();
 }
 
 void Food::Draw() {
@@ -137,3 +150,50 @@ void Food::OnSnakeEnter(Snake& snake) {
 }
 
 void Food::Update() {}
+
+void Food::Update(const std::vector<bool>& blocked_cells) {
+    if (food_type != FoodType::Moving || GetTime() < next_move_time) {
+        return;
+    }
+
+    for (int attempt = 0; attempt < 4; attempt++) {
+        Vector2 next_position = position;
+        switch (GetRandomDirection()) {
+            case dir_up:
+                next_position.y -= 1.0f;
+                break;
+            case dir_down:
+                next_position.y += 1.0f;
+                break;
+            case dir_left:
+                next_position.x -= 1.0f;
+                break;
+            case dir_right:
+                next_position.x += 1.0f;
+                break;
+            default:
+                break;
+        }
+
+        int x = static_cast<int>(next_position.x);
+        int y = static_cast<int>(next_position.y);
+        int cell_index = y * cellcount_width + x;
+        if (x < 0 || x >= cellcount_width || y < 0 || y >= cellcount_height ||
+            cell_index < 0 || static_cast<size_t>(cell_index) >= blocked_cells.size() ||
+            blocked_cells[cell_index]) {
+            continue;
+        }
+
+        position = next_position;
+        break;
+    }
+    ScheduleNextMove();
+}
+
+void Food::ScheduleNextMove() {
+    if (food_type == FoodType::Moving) {
+        next_move_time = GetTime() + GetRandomValue(1000, 1500) / 1000.0;
+    } else {
+        next_move_time = 0.0;
+    }
+}

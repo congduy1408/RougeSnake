@@ -4,7 +4,7 @@
 
 class StageProgress {
     public:
-        int default_food_goal = 15;
+        int default_food_goal = 10;
         float banner_duration = 3.0f;
 
         void Reset();
