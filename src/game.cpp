@@ -38,6 +38,15 @@ int game::GetBossStageNumber(int stage_index) const {
     return ((stage_index - 4) / 3) + 1;
 }
 
+float game::GetSceneSpriteOffset() const {
+    int stage_index = stage_progress.GetStageIndex();
+    int completed_boss_count = stage_index >= 4 ? (stage_index - 2) / 3 : 0;
+    if (IsBossStage(stage_index) && boss_enemy != nullptr && !boss_enemy->IsAlive()) {
+        completed_boss_count++;
+    }
+    return completed_boss_count % 2 == 0 ? 0.0f : 48.0f;
+}
+
 int game::CountActiveSupportEnemies() const {
     int enemy_count = 0;
     for (const std::unique_ptr<EnemySnake>& enemy : common_enemies) {
@@ -71,7 +80,6 @@ void game::InitGameObject() {
     screen_shake_offset = Vector2{0.0f, 0.0f};
     screen_shake_remaining = 0.0f;
     InitGround();
-    InitDoors();
     wall_bricks.clear();
     wall_cells.assign(cellcount_width * cellcount_height, false);
     InitStationaryWall();
@@ -97,29 +105,31 @@ void game::Draw() {
         case MAIN_MENU: {
             DrawMainMenuBackground();
             DrawCenteredText("ROUGE SNAKE", screenHeight / 2 - 90, 40,
-                             Color{236, 197, 74, 255});
+                             Color{218, 74, 66, 255});
             DrawCenteredText(TextFormat("High Score: %d", high_score),
                              screenHeight / 2 - 20, 24, Color{236, 197, 74, 255});
-            DrawCenteredText("Press Enter to start game", screenHeight / 2 + 35,
-                             20, Color{132, 200, 179, 255});
+            if (static_cast<int>(GetTime() * 2.0) % 2 == 0)
+            {
+                DrawCenteredText("Press any key to start", screenHeight / 2 + 35,
+                                 20, Color{132, 200, 179, 255});
+            }
         } break;
         case STAGE: {
             Camera2D shake_camera = {};
             shake_camera.offset = screen_shake_offset;
             shake_camera.zoom = 1.0f;
             BeginMode2D(shake_camera);
-            float tile_sprite_offset = stage_progress.GetStageIndex() > 4 ? 48.0f : 0.0f;
+            float tile_sprite_offset = GetSceneSpriteOffset();
             DrawGround(tile_sprite_offset);
             for (unsigned int i=0; i<wall_bricks.size(); i++) {
                 wall_bricks[i].Draw(tile_sprite_offset);
             }
-            DrawDoors();
             spawn_snake.Draw();
             DrawEnemies();
             spawn_food.Draw();
             DrawItems();
             for (const FallingRock& rock : falling_rocks) {
-                rock.Draw();
+                rock.Draw(tile_sprite_offset);
             }
             DrawScorePopup();
             DrawStageBanner();
@@ -143,7 +153,7 @@ void game::Draw() {
 void game::Update() {
     switch (state.currentScreen) {
         case MAIN_MENU: {
-            if (IsKeyPressed(KEY_ENTER)  || IsKeyPressed(KEY_KP_ENTER))
+            if (GetKeyPressed() != 0)
             {
                 state.currentScreen = STAGE;
                 audio.PlayMusic(IsBossStage(stage_progress.GetStageIndex())
@@ -327,7 +337,7 @@ bool game::UpdateEnemies(const std::vector<bool>& blocked_cells) {
         update_enemy(*enemy, false);
     }
     if (elite_enemy != nullptr) {
-        update_enemy(*elite_enemy, true);
+        update_enemy(*elite_enemy, !IsBossStage(stage_progress.GetStageIndex()));
     }
     if (boss_enemy != nullptr) {
         update_enemy(*boss_enemy, true);
@@ -344,7 +354,8 @@ void game::HandleCrossSnakeCollisions() {
         HandleCollisionWithEnemy(*enemy, false);
     }
     if (elite_enemy != nullptr) {
-        HandleCollisionWithEnemy(*elite_enemy, true);
+        HandleCollisionWithEnemy(*elite_enemy,
+                                 !IsBossStage(stage_progress.GetStageIndex()));
     }
     if (boss_enemy != nullptr) {
         HandleCollisionWithEnemy(*boss_enemy, true);
@@ -422,6 +433,7 @@ bool game::SpawnCommonEnemy() {
     }
     std::unique_ptr<EnemySnake> enemy(new EnemySnake());
     enemy->Reset(spawn_position, start_direction, 3);
+    ConfigureEnemySpeed(*enemy);
     common_enemies.push_back(std::move(enemy));
     return true;
 }
@@ -457,6 +469,7 @@ bool game::SpawnEliteEnemy(bool trigger_rock_wave) {
     elite_enemy.reset(new EliteEnemy());
     elite_enemy->random_turn_chance_percent = elite_random_turn_chance_percent;
     elite_enemy->Reset(spawn_position, start_direction, elite_length);
+    ConfigureEnemySpeed(*elite_enemy);
     elite_spawned = true;
     if (trigger_rock_wave) {
         SpawnRockWave(max_falling_rocks);
@@ -476,6 +489,29 @@ void game::SpawnFirstBoss() {
     boss_enemy->random_turn_chance_percent = boss_random_turn_chance_percent;
     boss_enemy->attack_length_threshold = boss_attack_length_threshold;
     boss_enemy->Reset(spawn_position, start_direction, boss_length);
+    ConfigureEnemySpeed(*boss_enemy);
+}
+
+void game::ConfigureEnemySpeed(EnemySnake& enemy) {
+    if (stage_progress.GetStageIndex() < 5) {
+        return;
+    }
+
+    int minimum_percent = enemy_speed_min_percent;
+    int maximum_percent = enemy_speed_max_percent;
+    if (maximum_percent < minimum_percent) {
+        std::swap(minimum_percent, maximum_percent);
+    }
+    if (minimum_percent < 1) {
+        minimum_percent = 1;
+    }
+    if (maximum_percent < 1) {
+        maximum_percent = 1;
+    }
+    float base_multiplier = GetRandomValue(minimum_percent, maximum_percent) / 100.0f;
+    enemy.ConfigureMovementSpeed(base_multiplier, enemy_speed_boost_chance_percent,
+                                 enemy_speed_boost_multiplier, enemy_speed_boost_min_moves,
+                                 enemy_speed_boost_max_moves);
 }
 
 bool game::FindEnemySpawn(int length, direction start_direction, Vector2& position) const {
@@ -542,7 +578,8 @@ bool game::IsAnySnakeCell(Vector2 position) const {
 }
 
 void game::CheckEliteSpawnProgress() {
-    if (stage_progress.GetStageIndex() != 3 || elite_spawned) {
+    int stage_index = stage_progress.GetStageIndex();
+    if (stage_index < 3 || IsBossStage(stage_index) || elite_spawned) {
         return;
     }
     int required_percent = elite_spawn_progress_percent;
@@ -785,6 +822,7 @@ void game::InitializeDefaultItems() {
     ItemDefinition speed_boost;
     speed_boost.effect = ItemEffectType::SpeedBoost;
     speed_boost.sprite_source = Rectangle{48.0f, 32.0f, 16.0f, 16.0f};
+    speed_boost.effect_duration = -1.0f;
     speed_boost.falls_with_rocks = true;
     item_definitions.push_back(speed_boost);
 
@@ -1137,7 +1175,7 @@ void game::HandleRockImpact(Vector2 position) {
         hit_enemy(*enemy, false);
     }
     if (elite_enemy != nullptr) {
-        hit_enemy(*elite_enemy, true);
+        hit_enemy(*elite_enemy, !IsBossStage(stage_progress.GetStageIndex()));
     }
     if (boss_enemy != nullptr) {
         hit_enemy(*boss_enemy, true);
@@ -1258,35 +1296,6 @@ void game::DrawGround(float sprite_x_offset) {
     }
 }
 
-void game::InitDoors() {
-    door_positions.clear();
-    constexpr int door_count = 5;
-    for (int i = 0; i < door_count; i++) {
-        float x = 4.0f + i * 8.0f;
-        door_positions.push_back(Vector2{x, 0.0f});
-    }
-}
-
-void game::DrawDoors() {
-    if (game_sprite.id == 0) {
-        return;
-    }
-
-    Rectangle source = {32.0f, 16.0f, 16.0f, 16.0f};
-    for (size_t i = 0; i < door_positions.size(); i++) {
-        Vector2 position = door_positions[i];
-        Rectangle destination = {
-            position.x * cellsize + cellsize / 2.0f,
-            position.y * cellsize + cellsize / 2.0f,
-            static_cast<float>(cellsize),
-            static_cast<float>(cellsize)
-        };
-        Vector2 origin = {destination.width / 2.0f, destination.height / 2.0f};
-        DrawTexturePro(game_sprite, source, destination, origin, 0.0f,
-                       Color{185, 185, 195, 255});
-    }
-}
-
 void game::DrawStageBanner() {
     if (!stage_progress.IsBannerVisible()) {
         return;
@@ -1331,6 +1340,8 @@ void game::DrawUI() {
                             stage_progress.GetFoodGoal()),
                  16, second_row_y, 18, Color{132, 200, 179, 255});
     }
+    DrawText("Press X for speed up", 390, second_row_y, 18,
+             Color{132, 200, 179, 255});
 }
 
 void game::ShowScorePopup(Vector2 position, int value) {

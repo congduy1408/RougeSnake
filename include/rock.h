@@ -21,7 +21,7 @@ class FallingRock {
                     std::size_t item_definition_index, float shake_duration,
                     float warning_duration, float fall_duration);
         bool Update(float delta_time);
-        void Draw() const;
+        void Draw(float sprite_x_offset = 0.0f) const;
         Vector2 GetPosition() const;
         RockState GetState() const;
         bool IsItemDrop() const;
@@ -38,10 +38,10 @@ class FallingRock {
         float warning_duration = 0.0f;
         float fall_duration = 0.0f;
         float settled_duration = 0.0f;
-        Rectangle sprite_source = {0.0f, 16.0f, 16.0f, 16.0f};
+        Rectangle sprite_source = {32.0f, 16.0f, 16.0f, 16.0f};
         std::size_t item_definition_index = static_cast<std::size_t>(-1);
         bool shake_started = false;
 
         void DrawShadow() const;
-        void DrawRock(float vertical_offset) const;
+        void DrawRock(float vertical_offset, float sprite_x_offset) const;
 };

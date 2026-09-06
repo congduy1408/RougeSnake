@@ -16,12 +16,20 @@ class EnemySnake {
         const Snake& GetSnake() const;
         Vector2 GetLastDeathPosition() const;
         int GetLastDeathLength() const;
+        void ConfigureMovementSpeed(float base_multiplier, int boost_chance_percent,
+                                    float boost_multiplier, int boost_min_moves,
+                                    int boost_max_moves);
 
     protected:
         Snake snake;
         bool alive = false;
         double last_move_time = 0.0;
         int boost_moves_remaining = 0;
+        float base_speed_multiplier = 1.0f;
+        float speed_boost_multiplier = 1.5f;
+        int speed_boost_chance_percent = 0;
+        int speed_boost_min_moves = 3;
+        int speed_boost_max_moves = 6;
         Vector2 last_death_position = {};
         int last_death_length = 0;
 

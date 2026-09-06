@@ -53,6 +53,12 @@ class game {
         int elite_random_turn_chance_percent = 15;
         int boss_random_turn_chance_percent = 20;
         int boss_attack_length_threshold = 7;
+        int enemy_speed_min_percent = 85;
+        int enemy_speed_max_percent = 125;
+        int enemy_speed_boost_chance_percent = 5;
+        float enemy_speed_boost_multiplier = 1.5f;
+        int enemy_speed_boost_min_moves = 3;
+        int enemy_speed_boost_max_moves = 6;
         int high_score_food_base_spawn_chance_percent = 10;
         int high_score_food_combo_size = 5;
         int high_score_food_combo_chance_percent = 10;
@@ -78,7 +84,6 @@ class game {
         int high_score = 0;
         std::string high_score_path;
         std::vector<direction> ground_directions;
-        std::vector<Vector2> door_positions;
         double next_rock_spawn_time = 0.0;
         std::vector<double> item_next_spawn_times;
         std::vector<ActiveItem> active_items;
@@ -94,6 +99,7 @@ class game {
         void DrawCenteredText(const char* text, int y, int font_size, Color color);
         bool IsBossStage(int stage_index) const;
         int GetBossStageNumber(int stage_index) const;
+        float GetSceneSpriteOffset() const;
         int CountActiveSupportEnemies() const;
         void LoadHighScore();
         void UpdateHighScore();
@@ -102,7 +108,6 @@ class game {
         void DrawMainMenuBackground();
         void DrawItems();
         void DrawGround(float sprite_x_offset);
-        void DrawDoors();
         void DrawStageBanner();
         void DrawUI();
         void ShowScorePopup(Vector2 position, int value);
@@ -121,6 +126,7 @@ class game {
         void SpawnCommonEnemies(int count);
         bool SpawnEliteEnemy(bool trigger_rock_wave = true);
         void SpawnFirstBoss();
+        void ConfigureEnemySpeed(EnemySnake& enemy);
         bool FindEnemySpawn(int length, direction start_direction, Vector2& position) const;
         bool IsAnySnakeCell(Vector2 position) const;
         void CheckEliteSpawnProgress();
@@ -128,7 +134,6 @@ class game {
         void ApplyPlayerCutPenalty(int removed_body_count, Vector2 popup_position);
         void HandlePlayerFoodCollision();
         void AdvanceStage();
-        void InitDoors();
         void UpdateRocks();
         void InitializeDefaultItems();
         void ResetItems();

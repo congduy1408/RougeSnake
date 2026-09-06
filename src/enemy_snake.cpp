@@ -63,6 +63,30 @@ int EnemySnake::GetLastDeathLength() const {
     return last_death_length;
 }
 
+void EnemySnake::ConfigureMovementSpeed(float new_base_multiplier,
+                                        int new_boost_chance_percent,
+                                        float new_boost_multiplier,
+                                        int new_boost_min_moves,
+                                        int new_boost_max_moves) {
+    base_speed_multiplier = new_base_multiplier > 0.0f ? new_base_multiplier : 1.0f;
+    speed_boost_chance_percent = new_boost_chance_percent;
+    if (speed_boost_chance_percent < 0) {
+        speed_boost_chance_percent = 0;
+    } else if (speed_boost_chance_percent > 100) {
+        speed_boost_chance_percent = 100;
+    }
+    speed_boost_multiplier = new_boost_multiplier > 1.0f ? new_boost_multiplier : 1.0f;
+    speed_boost_min_moves = new_boost_min_moves > 0 ? new_boost_min_moves : 1;
+    speed_boost_max_moves = new_boost_max_moves > 0 ? new_boost_max_moves : 1;
+    if (speed_boost_max_moves < speed_boost_min_moves) {
+        int temporary = speed_boost_min_moves;
+        speed_boost_min_moves = speed_boost_max_moves;
+        speed_boost_max_moves = temporary;
+    }
+    boost_moves_remaining = 0;
+    snake.SetMovementSpeedMultiplier(base_speed_multiplier);
+}
+
 bool EnemySnake::IsMoveReady() {
     double current_time = GetTime();
     if (current_time - last_move_time < snake.move_interval) {
@@ -106,14 +130,16 @@ void EnemySnake::UpdateSpeedBoost() {
     if (boost_moves_remaining > 0) {
         boost_moves_remaining--;
         if (boost_moves_remaining == 0) {
-            snake.SetSpeedBoost(false);
+            snake.SetMovementSpeedMultiplier(base_speed_multiplier);
         }
         return;
     }
 
-    if (GetRandomValue(0, 19) == 0) {
-        boost_moves_remaining = 5;
-        snake.SetSpeedBoost(true);
+    if (speed_boost_chance_percent > 0 &&
+        GetRandomValue(1, 100) <= speed_boost_chance_percent) {
+        boost_moves_remaining = GetRandomValue(speed_boost_min_moves,
+                                               speed_boost_max_moves);
+        snake.SetMovementSpeedMultiplier(base_speed_multiplier * speed_boost_multiplier);
     }
 }
 

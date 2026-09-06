@@ -52,7 +52,7 @@ bool FallingRock::Update(float delta_time) {
     return false;
 }
 
-void FallingRock::Draw() const {
+void FallingRock::Draw(float sprite_x_offset) const {
     if (state == RockState::Warning) {
         DrawShadow();
         return;
@@ -60,11 +60,11 @@ void FallingRock::Draw() const {
     if (state == RockState::Falling) {
         DrawShadow();
         float progress = fall_duration <= 0.0f ? 1.0f : 1.0f - state_remaining / fall_duration;
-        DrawRock(-(1.0f - progress) * cellsize * 4.0f);
+        DrawRock(-(1.0f - progress) * cellsize * 4.0f, sprite_x_offset);
         return;
     }
     if (state == RockState::Settled) {
-        DrawRock(0.0f);
+        DrawRock(0.0f, sprite_x_offset);
     }
 }
 
@@ -113,7 +113,7 @@ void FallingRock::DrawShadow() const {
                        cellsize, cellsize, Color{235, 70, 60, 255});
 }
 
-void FallingRock::DrawRock(float vertical_offset) const {
+void FallingRock::DrawRock(float vertical_offset, float sprite_x_offset) const {
     Rectangle destination = {
         position.x * cellsize + cellsize / 2.0f,
         position.y * cellsize + cellsize / 2.0f + vertical_offset,
@@ -123,7 +123,11 @@ void FallingRock::DrawRock(float vertical_offset) const {
     Vector2 origin = {destination.width / 2.0f, destination.height / 2.0f};
     if (sprite != nullptr && sprite->id != 0) {
         Color tint = IsItemDrop() ? WHITE : Color{170, 160, 150, 255};
-        DrawTexturePro(*sprite, sprite_source, destination, origin, 0.0f, tint);
+        Rectangle draw_source = sprite_source;
+        if (!IsItemDrop()) {
+            draw_source.x += sprite_x_offset;
+        }
+        DrawTexturePro(*sprite, draw_source, destination, origin, 0.0f, tint);
         return;
     }
 
