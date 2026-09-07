@@ -5,12 +5,13 @@ void game::InitGameObject() {
     state.currentScreen = MAIN_MENU;
     combo_counter = 0;
     score_multiplier = 1;
-    spawn_snake = Snake();
+    spawn_snake.Reset();
     wall_bricks.clear();
     wall_cells.assign(cellcount_width * cellcount_height, false);
     InitStationaryWall();
     spawn_food = Food();
     spawn_food.SetFoodPosition(spawn_snake, wall_cells);
+    last_get_time = GetTime();
 }
 
 void game::Draw() {

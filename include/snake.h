@@ -1,7 +1,5 @@
 #pragma once
 #include "common.h"
-#include "include/gamestate.h"
-#include "include/food.h"
 
 struct snake_body {
     Vector2 position;
@@ -10,20 +8,20 @@ struct snake_body {
     bool is_turn=false;
 };
 
-enum snakestate {
-    EATFOOD,
-    HITWALL,
-    HITTAIL
-};
-
 class Snake {
     public:
         std::vector<snake_body> body;
         std::vector<snake_body> turn_point_list;
-        int init_length = 3;
         direction snake_move;
         Texture2D snake_sprite;
+
         Snake();
+        ~Snake();
+
+        Snake(const Snake&) = delete;
+        Snake& operator=(const Snake&) = delete;
+
+        void Reset();
         void Draw();
         void TailCut(int cut_index);
         void ReadInput();

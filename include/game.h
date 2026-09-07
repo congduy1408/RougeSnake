@@ -1,3 +1,4 @@
+#pragma once
 #include "include/common.h"
 #include "include/snake.h"
 #include "include/food.h"
@@ -17,7 +18,7 @@ class game {
         float score_multiplier_start = 1.5;
         float score_multiplier_step = 0.5;
         float score_multiplier_max = 5;
-        double last_get_time;
+        double last_get_time = 0.0;
     void InitGameObject();
     void Draw();
     void Update();
