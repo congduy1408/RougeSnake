@@ -23,5 +23,22 @@ enum direction {
     dir_right
 };
 
-Vector2 RandomPosition();
+struct GridPosition
+{
+    int x = 0;
+    int y = 0;
+
+    bool operator==(const GridPosition& other) const
+    {
+        return x == other.x &&
+               y == other.y;
+    }
+
+    bool operator!=(const GridPosition& other) const
+    {
+        return !(*this == other);
+    }
+};
+
+GridPosition RandomPosition();
 bool FixFrameUpdate(int fps, int &frame_counter);

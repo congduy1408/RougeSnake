@@ -6,10 +6,10 @@ class Snake;
 
 class Brick: public GameObject {
     public:
-        Brick(Vector2 position) :
+        Brick(GridPosition position) :
         GameObject(position) {};
         Brick() {};
-        void SetBrickPos(Vector2 pos);
+        void SetBrickPos(GridPosition pos);
         void Draw();
         void Update();
         void OnSnakeEnter(Snake& snake) override;

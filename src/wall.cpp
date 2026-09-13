@@ -1,7 +1,7 @@
 #include "include/wall.h"
 #include "include/snake.h"
 
-void Brick::SetBrickPos(Vector2 pos) {
+void Brick::SetBrickPos(GridPosition pos) {
     SetPosition(pos);
 }
 

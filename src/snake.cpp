@@ -17,17 +17,21 @@ Snake::~Snake() {
 
 void Snake::Reset() {
     snake_move = dir_right;
+    queued_direction = dir_right;
+    has_queued_direction =false;
+    movement_elapsed = 0.0f;
+    animation_elapsed = 0.0f;
+
     frame_counter = 0;
     flip_frame = 1;
 
     body.clear();
-    body.push_back(snake_body{Vector2{10,15}, dir_right, dir_right, false});
-    body.push_back(snake_body{Vector2{9,15}, dir_right, dir_right, false});
-    body.push_back(snake_body{Vector2{8,15}, dir_right, dir_right, false});
+    body.push_back(snake_body{GridPosition{10,15}, dir_right, dir_right, false});
+    body.push_back(snake_body{GridPosition{9,15}, dir_right, dir_right, false});
+    body.push_back(snake_body{GridPosition{8,15}, dir_right, dir_right, false});
 }
 
 void Snake::DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction dir) {
-    // DrawTextureRec(snake_sprite, head_sprite, Vector2{body[i].position.x * cellsize, body[i].position.y * cellsize}, WHITE);  // Draw part of the texture
     Vector2 origin = {draw_pos.width/2, draw_pos.height/2};
     float rotation = 0;
     switch(dir) {
@@ -57,9 +61,9 @@ void Snake::DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction di
 }
 
 void Snake::Draw() {
-    if (FixFrameUpdate(fps, frame_counter)) {
-        flip_frame = flip_frame * -1;
-    }
+    // if (FixFrameUpdate(fps, frame_counter)) {
+    //     flip_frame = flip_frame * -1;
+    // }
     auto MakeMirroredSprite = [this](float x, float y) {
         return Rectangle{x, y, 16.0f, 16.0f * flip_frame};
     };
@@ -122,35 +126,43 @@ void Snake::TailCut(int cut_index) {
 }
 
 void Snake::ReadInput() {
-    bool snake_turn = false;
-    if (IsKeyDown(KEY_RIGHT) && snake_move != dir_left && snake_move != dir_right){
-        snake_move = dir_right;
-        snake_turn = true;
+    direction requested_direction;
+    if (IsKeyPressed(KEY_RIGHT)){
+        requested_direction = dir_right;
     }
-    else if (IsKeyDown(KEY_LEFT) && snake_move != dir_right && snake_move != dir_left) {
-        snake_move = dir_left;
-        snake_turn = true;
+    else if (IsKeyPressed(KEY_LEFT)) {
+        requested_direction = dir_left;
     }
-    else if (IsKeyDown(KEY_UP) && snake_move != dir_down && snake_move != dir_up){
-        snake_move = dir_up;
-        snake_turn = true;
+    else if (IsKeyPressed(KEY_UP)){
+        requested_direction = dir_up;
     }
-    else if (IsKeyDown(KEY_DOWN) && snake_move != dir_up && snake_move != dir_down) {
-        snake_move = dir_down;
-        snake_turn = true;
+    else if (IsKeyPressed(KEY_DOWN)) {
+        requested_direction = dir_down;
+    } else {
+        return;
     }
-    // record the point snake change direction
-    // the record will contain: change position + new direction
-    if (snake_turn) {
-        body.front().pre_dir = body.front().cur_dir;
-        body.front().cur_dir = snake_move;
-        body.front().is_turn = true;
+    bool current_is_horizontal = 
+        snake_move == dir_left ||
+        snake_move == dir_right;
+    bool requested_is_horizontal =
+        requested_direction == dir_left ||
+        requested_direction == dir_right;
+    if (current_is_horizontal == requested_is_horizontal)
+    {
+        return;
     }
+
+    queued_direction = requested_direction;
+    has_queued_direction = true;
 }
 
 void Snake::MoveSnake() {
+    if (body.empty()) {
+        return;
+    }
+    snake_body new_head = body.front();
     body.pop_back();
-    body.insert(body.begin(), body.front());
+    body.insert(body.begin(), new_head);
     body.front().is_turn = false;
     switch (snake_move) {
         case dir_up:
@@ -171,6 +183,7 @@ void Snake::MoveSnake() {
     body.front().cur_dir = snake_move;
 }
 
+
 void Snake::Grow() {
     body.push_back(body.back());
 }
@@ -188,15 +201,51 @@ void Snake::CheckSnakeState() {
     }
     // check hit itslef -> cut tail
     for (unsigned int i=1; i < body.size(); i++) {
-        if (Vector2Equals(body.front().position,body[i].position)) {
+        if (body.front().position == body[i].position) {
             // std::cout << 'cut index:' << i << std::endl;
             TailCut(i);
             break;
         }
     }
 }
-void Snake::Update() {
-    ReadInput();
+
+void Snake::FixedUpdateAnimation(float delta_time) {
+    animation_elapsed += delta_time;
+
+    if (animation_elapsed >= animation_interval)
+    {
+        animation_elapsed -= animation_interval;
+        flip_frame *= -1;
+    }
+}
+
+bool Snake::UpdateMovement(float delta_time) {
+    movement_elapsed += delta_time;
+
+    if (movement_elapsed < movement_interval) {
+        return false;
+    }
+
+    movement_elapsed -= movement_interval;
+
+    if (has_queued_direction) {
+        snake_move = queued_direction;
+        has_queued_direction = false;
+
+        body.front().pre_dir = body.front().cur_dir;
+        body.front().cur_dir = snake_move;
+        body.front().is_turn = true;
+    }
+
     MoveSnake();
     CheckSnakeState();
+
+    return true;
+}
+
+void Snake::SetMovementInterval(float interval) {
+    if (interval > 0.0f)
+    {
+        movement_interval = interval;
+    }
 }

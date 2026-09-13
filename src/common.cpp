@@ -8,10 +8,10 @@ int screenHeight = cellsize * cellcount_height;
 float fix_update_time = 0.05;
 // float sprite_update_time = 0.05;
 
-Vector2 RandomPosition() {
-    float x = GetRandomValue(0, cellcount_width-1);
-    float y = GetRandomValue(0, cellcount_height - 1);
-    return Vector2{x, y};
+GridPosition RandomPosition() {
+    int x = GetRandomValue(0, cellcount_width-1);
+    int y = GetRandomValue(0, cellcount_height - 1);
+    return GridPosition{x, y};
 }
 
 bool FixFrameUpdate(int fps, int &frame_counter) {

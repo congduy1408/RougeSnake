@@ -2,7 +2,7 @@
 #include "common.h"
 
 struct snake_body {
-    Vector2 position;
+    GridPosition position;
     direction cur_dir;
     direction pre_dir;
     bool is_turn=false;
@@ -11,7 +11,6 @@ struct snake_body {
 class Snake {
     public:
         std::vector<snake_body> body;
-        std::vector<snake_body> turn_point_list;
         direction snake_move;
         Texture2D snake_sprite;
 
@@ -25,15 +24,28 @@ class Snake {
         void Draw();
         void TailCut(int cut_index);
         void ReadInput();
-        void MoveSnake();
-        // snakestate CheckSnakeState(gamestate &gamestate, food &food);
-        void CheckSnakeState();
+
         void Grow();
 
-        void Update();
+        // void Update();
+        bool UpdateMovement(float delta_time);
+        void FixedUpdateAnimation(float delta_time);
+        void SetMovementInterval(float interval);
     private:
         int fps = 60;
+
+        float movement_interval = 0.10f;
+        float movement_elapsed = 0.0f;
+        float animation_interval = 0.3f;
+        float animation_elapsed = 0.0f;
+
+        direction queued_direction = dir_right;
+        bool has_queued_direction = false;
+
+
         int frame_counter = 0;
         int flip_frame = 1;
         void DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction dir);
+        void MoveSnake();
+        void CheckSnakeState();
 };

@@ -21,12 +21,12 @@ class game {
         double last_get_time = 0.0;
     void InitGameObject();
     void Draw();
-    void Update();
-    bool FixUpdate(float interval);
+    void ReadInput();
+    void FixUpdate(float interval);
     bool SnakeCollision(Snake& snake, GameObject object);
-    int CellIndex(Vector2 pos);
-    bool IsWallCell(Vector2 pos);
-    void AddWallBrick(Vector2 pos);
+    int CellIndex(GridPosition pos);
+    bool IsWallCell(GridPosition pos);
+    void AddWallBrick(GridPosition pos);
     void InitStationaryWall();
     void UpdateComboCounter(int food_score, int food_max_score);
     float GetFoodScoreWithCombo(int food_score);

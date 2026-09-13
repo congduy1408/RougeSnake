@@ -7,7 +7,7 @@
 
 bool Food::CollideSnakePosition(Snake& snake) {
     for (unsigned int i=0; i< snake.body.size(); i++) {
-        if (Vector2Equals(position, snake.body[i].position)) {
+        if (position == snake.body[i].position) {
             return true;
         }
     }
@@ -15,25 +15,18 @@ bool Food::CollideSnakePosition(Snake& snake) {
 } 
 
 bool Food::CollideWallPosition(const std::vector<bool>& wall_cells) {
-    int x = (int)position.x;
-    int y = (int)position.y;
-    if (x < 0 || x >= cellcount_width || y < 0 || y >= cellcount_height) {
+    if (position.x < 0 || position.x >= cellcount_width || position.y < 0 || position.y >= cellcount_height) {
         return true;
     }
-    return wall_cells[y * cellcount_width + x];
+    return wall_cells[position.y * cellcount_width + position.x];
 }
 
-bool Food::IsInsideBoundary(Vector2 pos) {
-    int food_x = (int)position.x;
-    int food_y = (int)position.y;
-    int pos_x = (int)pos.x;
-    int pos_y = (int)pos.y;
-
-    return pos_x >= food_x - 1 && pos_x <= food_x + 1 &&
-           pos_y >= food_y - 1 && pos_y <= food_y + 1;
+bool Food::IsInsideBoundary(GridPosition pos) {
+    return pos.x >= position.x - 1 && pos.x <= position.x + 1 &&
+           pos.y >= position.y - 1 && pos.y <= position.y + 1;
 }
 
-bool Food::UpdateBoundaryScore(Vector2 snake_pos) {
+bool Food::UpdateBoundaryScore(GridPosition snake_pos) {
     bool is_inside_boundary = IsInsideBoundary(snake_pos);
     if (snake_inside_boundary && !is_inside_boundary && score > 1) {
         score--;

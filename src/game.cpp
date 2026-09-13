@@ -38,7 +38,7 @@ void game::Draw() {
             break;
     }
 }
-void game::Update() {
+void game::ReadInput() {
     switch (state.currentScreen) {
         case MAIN_MENU: {
             if (IsKeyPressed(KEY_ENTER))
@@ -47,31 +47,11 @@ void game::Update() {
             }
         } break;
         case STAGE: {
-            if (FixUpdate(fix_update_time)) {
-                spawn_snake.Update();
-                if (IsWallCell(spawn_snake.body.front().position)) {
-                    state.currentScreen = GAMEOVER;
-                    break;
-                }
-                spawn_food.Update();
-                if (SnakeCollision(spawn_snake, spawn_food)) {
-                    int food_score = spawn_food.GetScore();
-                    UpdateComboCounter(food_score, spawn_food.max_score);
-                    state.score += GetFoodScoreWithCombo(food_score);
-                    spawn_snake.Grow();
-                    spawn_food.SetFoodPosition(spawn_snake, wall_cells);
-                } else {
-                    if (spawn_food.UpdateBoundaryScore(spawn_snake.body.front().position)) {
-                        combo_counter = 0;
-                        score_multiplier = 1;
-                    }
-                }
-            }
+            spawn_snake.ReadInput();
         } break;
         case GAMEOVER: {
             if (IsKeyPressed(KEY_ENTER))
             {
-                
                 InitGameObject();
                 state.currentScreen = STAGE;
             }
@@ -81,13 +61,41 @@ void game::Update() {
 
 }
 
-bool game::FixUpdate(float interval) {
-    double current_get_time = GetTime();
-    if (current_get_time - last_get_time >= interval) {
-        last_get_time = current_get_time;
-        return true;
-    } else {
-        return false;
+void game::FixUpdate(float interval) {
+    if (state.currentScreen != STAGE) {
+        return;
+    }
+    // Update snake movement base on interval
+    bool snake_moved = spawn_snake.UpdateMovement(interval);
+    spawn_snake.FixedUpdateAnimation(interval);
+    // update food
+    spawn_food.Update();
+    // check snake collision with wall
+    if (!snake_moved)
+    {
+        return;
+    }
+    //// move to game over
+    if (IsWallCell(spawn_snake.body.front().position)) {
+        state.currentScreen = GAMEOVER;
+        return;
+    }
+    // check snake collision with food
+    //// grow snake, get score, update combo, spawn new food
+    //// reset combo if snake move out of food boundary
+    if (SnakeCollision(spawn_snake, spawn_food)) {
+        int food_score = spawn_food.GetScore();
+        UpdateComboCounter(food_score, spawn_food.max_score);
+        state.score += GetFoodScoreWithCombo(food_score);
+        spawn_snake.Grow();
+        spawn_food.SetFoodPosition(spawn_snake, wall_cells);
+
+    }
+    else if (spawn_food.UpdateBoundaryScore(
+                 spawn_snake.body.front().position))
+    {
+        combo_counter = 0;
+        score_multiplier = 1.0f;
     }
 }
 
@@ -99,23 +107,19 @@ bool game::SnakeCollision(Snake& snake, GameObject object) {
     }
 }
 
-int game::CellIndex(Vector2 pos) {
-    return (int)pos.y * cellcount_width + (int)pos.x;
+int game::CellIndex(GridPosition pos) {
+    return pos.y * cellcount_width + pos.x;
 }
 
-bool game::IsWallCell(Vector2 pos) {
-    int x = (int)pos.x;
-    int y = (int)pos.y;
-    if (x < 0 || x >= cellcount_width || y < 0 || y >= cellcount_height) {
+bool game::IsWallCell(GridPosition pos) {
+    if (pos.x < 0 || pos.x >= cellcount_width || pos.y < 0 || pos.y >= cellcount_height) {
         return true;
     }
     return wall_cells[CellIndex(pos)];
 }
 
-void game::AddWallBrick(Vector2 pos) {
-    int x = (int)pos.x;
-    int y = (int)pos.y;
-    if (x < 0 || x >= cellcount_width || y < 0 || y >= cellcount_height) {
+void game::AddWallBrick(GridPosition pos) {
+    if (pos.x < 0 || pos.x >= cellcount_width || pos.y < 0 || pos.y >= cellcount_height) {
         return;
     }
 
@@ -130,13 +134,13 @@ void game::AddWallBrick(Vector2 pos) {
 
 void game::InitStationaryWall() {
     for (int x=0; x<cellcount_width; x++) {
-        AddWallBrick(Vector2{(float)x, 0});
-        AddWallBrick(Vector2{(float)x, (float)cellcount_height - 1});
+        AddWallBrick(GridPosition{x, 0});
+        AddWallBrick(GridPosition{x, cellcount_height - 1});
     }
 
     for (int y=0; y<cellcount_height; y++) {
-        AddWallBrick(Vector2{0, (float)y});
-        AddWallBrick(Vector2{(float)cellcount_width - 1, (float)y});
+        AddWallBrick(GridPosition{0, y});
+        AddWallBrick(GridPosition{cellcount_width - 1, y});
     }
 }
 
