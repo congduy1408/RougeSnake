@@ -5,7 +5,7 @@ void Brick::SetBrickPos(GridPosition pos) {
     SetPosition(pos);
 }
 
-void Brick::Draw() {
+void Brick::Draw() const {
     DrawRectangle(position.x * cellsize, position.y * cellsize, cellsize, cellsize, darkGreen);
 }
 

@@ -1,5 +1,6 @@
 #include "include/food.h"
 #include "include/snake.h"
+#include "include/board.h"
 
 // void Food::SetSnake(snake snake) {
 //     checksnake = _snake;
@@ -14,11 +15,8 @@ bool Food::CollideSnakePosition(Snake& snake) {
     return false;
 } 
 
-bool Food::CollideWallPosition(const std::vector<bool>& wall_cells) {
-    if (position.x < 0 || position.x >= cellcount_width || position.y < 0 || position.y >= cellcount_height) {
-        return true;
-    }
-    return wall_cells[position.y * cellcount_width + position.x];
+bool Food::CollideWallPosition(Board& board) {
+    return board.IsBlocked(position);
 }
 
 bool Food::IsInsideBoundary(GridPosition pos) {
@@ -54,9 +52,9 @@ void Food::SetFoodPosition(Snake& snake) {
     ResetScore();
 }
 
-void Food::SetFoodPosition(Snake& snake, const std::vector<bool>& wall_cells) {
+void Food::SetFoodPosition(Snake& snake, Board& board) {
     position = RandomPosition();
-    while(CollideSnakePosition(snake) || CollideWallPosition(wall_cells)) {
+    while(CollideSnakePosition(snake) || CollideWallPosition(board)) {
         position = RandomPosition();
     }
     ResetScore();

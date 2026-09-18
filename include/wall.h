@@ -10,7 +10,7 @@ class Brick: public GameObject {
         GameObject(position) {};
         Brick() {};
         void SetBrickPos(GridPosition pos);
-        void Draw();
+        void Draw() const;
         void Update();
         void OnSnakeEnter(Snake& snake) override;
 };

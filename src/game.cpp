@@ -1,16 +1,17 @@
 #include "include/game.h"
 
 void game::InitGameObject() {
+    
     state = gamestate();
     state.currentScreen = MAIN_MENU;
     combo_counter = 0;
     score_multiplier = 1;
+
+    board.Reset();
     spawn_snake.Reset();
-    wall_bricks.clear();
-    wall_cells.assign(cellcount_width * cellcount_height, false);
-    InitStationaryWall();
-    spawn_food = Food();
-    spawn_food.SetFoodPosition(spawn_snake, wall_cells);
+    spawn_food.ResetScore();
+
+    spawn_food.SetFoodPosition(spawn_snake, board);
     last_get_time = GetTime();
 }
 
@@ -20,9 +21,7 @@ void game::Draw() {
             DrawText("Press Enter to start game", screenWidth/2 ,screenHeight/2, 20, darkGreen);
         } break;
         case STAGE: {
-            for (unsigned int i=0; i<wall_bricks.size(); i++) {
-                wall_bricks[i].Draw();
-            }
+            board.Draw();
             spawn_snake.Draw();
             spawn_food.Draw();
             DrawText(TextFormat("Score: %.1f", state.score), 10,10, 20, darkGreen);
@@ -76,7 +75,7 @@ void game::FixUpdate(float interval) {
         return;
     }
     //// move to game over
-    if (IsWallCell(spawn_snake.body.front().position)) {
+    if (board.IsBlocked(spawn_snake.body.front().position)) {
         state.currentScreen = GAMEOVER;
         return;
     }
@@ -88,7 +87,7 @@ void game::FixUpdate(float interval) {
         UpdateComboCounter(food_score, spawn_food.max_score);
         state.score += GetFoodScoreWithCombo(food_score);
         spawn_snake.Grow();
-        spawn_food.SetFoodPosition(spawn_snake, wall_cells);
+        spawn_food.SetFoodPosition(spawn_snake, board);
 
     }
     else if (spawn_food.UpdateBoundaryScore(
@@ -99,48 +98,11 @@ void game::FixUpdate(float interval) {
     }
 }
 
-bool game::SnakeCollision(Snake& snake, GameObject object) {
+bool game::SnakeCollision(Snake& snake, GameObject object) const {
     if (snake.body.front().position == object.GetPosition()) {
         return true;
     } else {
         return false;
-    }
-}
-
-int game::CellIndex(GridPosition pos) {
-    return pos.y * cellcount_width + pos.x;
-}
-
-bool game::IsWallCell(GridPosition pos) {
-    if (pos.x < 0 || pos.x >= cellcount_width || pos.y < 0 || pos.y >= cellcount_height) {
-        return true;
-    }
-    return wall_cells[CellIndex(pos)];
-}
-
-void game::AddWallBrick(GridPosition pos) {
-    if (pos.x < 0 || pos.x >= cellcount_width || pos.y < 0 || pos.y >= cellcount_height) {
-        return;
-    }
-
-    int cell_index = CellIndex(pos);
-    if (wall_cells[cell_index]) {
-        return;
-    }
-
-    wall_cells[cell_index] = true;
-    wall_bricks.push_back(Brick(pos));
-}
-
-void game::InitStationaryWall() {
-    for (int x=0; x<cellcount_width; x++) {
-        AddWallBrick(GridPosition{x, 0});
-        AddWallBrick(GridPosition{x, cellcount_height - 1});
-    }
-
-    for (int y=0; y<cellcount_height; y++) {
-        AddWallBrick(GridPosition{0, y});
-        AddWallBrick(GridPosition{cellcount_width - 1, y});
     }
 }
 
