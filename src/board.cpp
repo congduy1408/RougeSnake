@@ -67,3 +67,70 @@ void Board::CreateBoundaryWalls() {
         AddWall(GridPosition{width-1, y});
     }
 }
+
+void Board::SetCell(GridPosition position, CellType type) {
+    cells[position.x][position.y].type = type;
+}
+
+CellType Board::GetCell(GridPosition position) {
+    return cells[position.x][position.y].type;
+}
+
+bool Board::IsWalkable(GridPosition position) {
+    CellType _type = cells[position.x][position.y].type;
+    switch(_type) {
+        case NONE:
+            return  false;
+        case GROUND:
+            return true;
+        case WALL:
+            return false;
+        case GAP:
+            return true;
+        case ENTRANCE:
+            return false;
+        case DOOR:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool Board::IsLethal(GridPosition position) {
+    CellType _type = cells[position.x][position.y].type;
+    switch(_type) {
+        case NONE:
+            return  false;
+        case GROUND:
+            return false;
+        case WALL:
+            return false;
+        case GAP:
+            return true;
+        case ENTRANCE:
+            return false;
+        case DOOR:
+            return false;
+        default:
+            return false;
+    }
+}
+bool Board::IsDoor(GridPosition position) {
+    CellType _type = cells[position.x][position.y].type;
+    switch(_type) {
+        case NONE:
+            return  false;
+        case GROUND:
+            return false;
+        case WALL:
+            return false;
+        case GAP:
+            return false;
+        case ENTRANCE:
+            return false;
+        case DOOR:
+            return true;
+        default:
+            return false;
+    }
+}

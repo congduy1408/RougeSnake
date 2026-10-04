@@ -1,6 +1,19 @@
 #pragma once
 #include "common.h"
 #include "wall.h"
+
+enum CellType {
+    GROUND,
+    WALL,
+    GAP,
+    ENTRANCE,
+    DOOR
+};
+
+struct BoardCell {
+    CellType type;
+};
+
 class Board {
     public:
         Board(int width, int height);
