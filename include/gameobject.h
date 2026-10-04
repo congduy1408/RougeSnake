@@ -15,8 +15,11 @@ class GameObject {
         void SetPosition(GridPosition _position) {
             position = _position;
         }
-        GridPosition GetPosition (){
+        GridPosition GetPosition () const{
             return position;
+        }
+        bool IsAt (GridPosition other) {
+            return position == other;
         }
         virtual ~GameObject() = default;
         virtual void Update() {};

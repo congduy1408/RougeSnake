@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Rouge Snake Room Maker</title>
+
+  <link rel="stylesheet" href="./styles.css">
+
+</head>
+
+<body>
+
+  <div class="app-shell">
+
+    <header class="topbar">
+
+      <div class="brand">
+
+        <h1>Rouge Snake Room Maker</h1>
+
+        <p>Layered grid room editor.</p>
+
+      </div>
+
+      <div class="toolbar">
+
+        <button id="undo-btn" type="button" title="Undo (Ctrl+Z)">Undo</button>
+
+        <button id="redo-btn" type="button" title="Redo (Ctrl+Y)">Redo</button>
+
+        <button id="new-map-btn" type="button">New Map</button>
+
+        <button id="import-btn" type="button">Open JSON</button>
+
+        <button id="export-btn" type="button">Save JSON</button>
+
+        <input id="import-file" type="file" accept=".json,application/json" hidden>
+
+      </div>
+
+    </header>
+
+
+
+    <main class="workspace">
+
+      <aside class="sidebar left">
+
+        <section class="panel">
+
+          <div class="panel-heading">
+
+            <h2>Map</h2>
+
+          </div>
+
+          <div class="form-grid">
+
+            <label>
+
+              <span>Name</span>
+
+              <input id="map-name" type="text">
+
+            </label>
+
+            <label>
+
+              <span>Width</span>
+
+              <input id="map-width" type="number" min="1" max="1000" step="1">
+
+            </label>
+
+            <label>
+
+              <span>Height</span>
+
+              <input id="map-height" type="number" min="1" max="1000" step="1">
+
+            </label>
+
+            <label>
+
+              <span>Cell Size</span>
+
+              <input id="cell-size" type="number" min="8" max="64" step="1">
+
+            </label>
+
+            <label>
+
+              <span>Background</span>
+
+              <input id="bg-color" type="color">
+
+            </label>
+
+            <label>
+
+              <span>Grid</span>
+
+              <input id="grid-color" type="color">
+
+            </label>
+
+            <label class="checkbox-row">
+
+              <input id="show-grid" type="checkbox">
+
+              <span>Show grid</span>
+
+            </label>
+
+          </div>
+
+        </section>
+
+
+
+        <section class="panel">
+
+          <div class="panel-heading">
+
+            <h2>Tools</h2>
+
+          </div>
+
+          <div class="tool-grid" id="tool-group">
+
+            <button data-tool="brush" type="button">Brush</button>
+
+            <button data-tool="eraser" type="button">Eraser</button>
+
+            <button data-tool="rectangular" type="button">Rectangle</button>
+
+            <button data-tool="place-entrance" type="button">Place Entrance</button>
+
+            <button data-tool="place-exit" type="button">Place Exit</button>
+
+          </div>
+
+        </section>
+
+
+
+        <section class="panel">
+
+          <div class="panel-heading">
+
+            <h2>Tiles</h2>
+
+            <div class="panel-actions">
+
+              <button id="add-tile-btn" type="button">Add</button>
+
+              <button id="edit-tile-btn" type="button">Edit</button>
+
+              <button id="remove-tile-btn" type="button">Remove</button>
+
+            </div>
+
+          </div>
+
+          <div id="tile-list" class="tile-list"></div>
+
+          <div id="tile-editor" class="tile-editor" hidden>
+
+            <div class="panel-heading tile-editor-heading">
+
+              <h3 id="tile-editor-title">Tile Editor</h3>
+
+            </div>
+
+            <div class="form-grid tile-editor-grid">
+
+              <label>
+
+                <span>Name</span>
+
+                <input id="tile-editor-name" type="text">
+
+              </label>
+
+              <label>
+
+                <span>Id</span>
+
+                <input id="tile-editor-id" type="number" min="0" max="255" step="1">
+
+              </label>
+
+              <label>
+
+                <span>Appear Ratio (%)</span>
+
+                <input id="tile-editor-ratio" type="number" min="0" max="100" step="1">
+
+              </label>
+
+              <label>
+
+                <span>Color</span>
+
+                <input id="tile-editor-color" type="color">
+
+              </label>
+
+              <label class="tile-editor-preview">
+
+                <span>Preview</span>
+
+                <div id="tile-editor-swatch" class="tile-editor-swatch"></div>
+
+              </label>
+
+            </div>
+
+            <div class="panel-actions tile-editor-actions">
+
+              <button id="tile-editor-save-btn" type="button">Save Tile</button>
+
+              <button id="tile-editor-cancel-btn" type="button">Cancel</button>
+
+            </div>
+
+          </div>
+
+        </section>
+
+      </aside>
+
+
+
+      <section class="canvas-stage">
+
+        <div class="stage-card">
+
+          <div class="stage-heading">
+
+            <div>
+
+              <h2>TileMap</h2>
+
+              <p id="status-text">Ready.</p>
+
+              <p class="panel-copy">Scroll to zoom · Hold Space + drag to pan</p>
+
+            </div>
+
+            <div class="panel-actions viewport-actions">
+
+              <span id="zoom-label" class="zoom-label">100%</span>
+
+              <button id="zoom-out-btn" type="button" title="Zoom out">-</button>
+
+              <button id="zoom-reset-btn" type="button" title="Reset zoom">Fit</button>
+
+              <button id="zoom-in-btn" type="button" title="Zoom in">+</button>
+
+            </div>
+
+          </div>
+
+          <div id="canvas-wrap" class="canvas-wrap">
+
+            <canvas id="tilemap-canvas"></canvas>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+      <aside class="sidebar right">
+
+        <section class="panel">
+
+          <div class="panel-heading">
+
+            <h2>Layers</h2>
+
+            <div class="panel-actions">
+
+              <button id="add-layer-btn" type="button">Add</button>
+
+              <button id="rename-layer-btn" type="button">Rename</button>
+
+              <button id="remove-layer-btn" type="button">Remove</button>
+
+            </div>
+
+          </div>
+
+          <div class="panel-actions secondary">
+
+            <button id="layer-up-btn" type="button">Up</button>
+
+            <button id="layer-down-btn" type="button">Down</button>
+
+            <button id="clear-layer-btn" type="button">Clear</button>
+
+          </div>
+
+          <div id="layer-list" class="layer-list"></div>
+
+        </section>
+
+
+
+        <section class="panel">
+
+          <div class="panel-heading">
+
+            <h2>Room Markers</h2>
+
+            <div class="panel-actions">
+
+              <button id="clear-entrance-btn" type="button">Clear Entrance</button>
+
+              <button id="clear-exits-btn" type="button">Clear Exits</button>
+
+            </div>
+
+          </div>
+
+          <p class="panel-copy">Place one entrance and 1–3 exits on the room boundary. Doors are one grid cell wide.</p>
+
+          <div id="marker-summary" class="marker-summary"></div>
+
+        </section>
+
+      </aside>
+
+    </main>
+
+  </div>
+
+
+
+  <script src="./app.js"></script>
+
+</body>
+
+</html>
+

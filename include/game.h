@@ -26,8 +26,9 @@ class game {
     void ReadInput();
     void FixUpdate(float interval);
 
-    bool SnakeCollision(Snake& snake, GameObject object) const;
+    // bool SnakeCollision(const Snake& snake, const GameObject& object) const;
     
+    void HandleFoodCollision();
     void UpdateComboCounter(int food_score, int food_max_score);
     float GetFoodScoreWithCombo(int food_score);
 };

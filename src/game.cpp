@@ -82,13 +82,8 @@ void game::FixUpdate(float interval) {
     // check snake collision with food
     //// grow snake, get score, update combo, spawn new food
     //// reset combo if snake move out of food boundary
-    if (SnakeCollision(spawn_snake, spawn_food)) {
-        int food_score = spawn_food.GetScore();
-        UpdateComboCounter(food_score, spawn_food.max_score);
-        state.score += GetFoodScoreWithCombo(food_score);
-        spawn_snake.Grow();
-        spawn_food.SetFoodPosition(spawn_snake, board);
-
+    if (spawn_food.IsAt(spawn_snake.body.front().position)) {
+        HandleFoodCollision();
     }
     else if (spawn_food.UpdateBoundaryScore(
                  spawn_snake.body.front().position))
@@ -98,12 +93,12 @@ void game::FixUpdate(float interval) {
     }
 }
 
-bool game::SnakeCollision(Snake& snake, GameObject object) const {
-    if (snake.body.front().position == object.GetPosition()) {
-        return true;
-    } else {
-        return false;
-    }
+void game::HandleFoodCollision() {
+    int food_score = spawn_food.GetScore();
+    UpdateComboCounter(food_score, spawn_food.max_score);
+    state.score += GetFoodScoreWithCombo(food_score);
+    spawn_snake.Grow();
+    spawn_food.SetFoodPosition(spawn_snake, board);
 }
 
 void game::UpdateComboCounter(int food_score, int food_max_score) {
