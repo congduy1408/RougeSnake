@@ -18,20 +18,20 @@ struct BoardCell {
 class Board {
     public:
         Board(int width, int height);
-
+        void Initialize(int width, int height);
         void Reset();
         bool IsInside(GridPosition position) const;
         void AddCell(GridPosition position, CellType type);
         void Draw() const;
-        int GetWidth();
-        int GetHeight();
+        int GetWidth() const;
+        int GetHeight() const;
 
         // implement board cell
         void SetCell(GridPosition position, CellType type);
-        CellType GetCellType(GridPosition position);
-        bool IsWalkable(GridPosition position);
-        bool IsLethal(GridPosition position);
-        bool IsDoor(GridPosition position);
+        CellType GetCellType(GridPosition position) const;
+        bool IsWalkable(GridPosition position) const;
+        bool IsLethal(GridPosition position) const;
+        bool IsDoor(GridPosition position) const;
     private:
         int width;
         int height;

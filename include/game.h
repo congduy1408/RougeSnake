@@ -5,6 +5,7 @@
 #include "include/wall.h"
 #include "include/gamestate.h"
 #include "include/board.h"
+#include "include/room_template.h"
 
 class game {
     public:
@@ -13,6 +14,7 @@ class game {
         Board board{cellcount_width, cellcount_height};
         Snake spawn_snake;
         Food spawn_food;
+        RoomTemplate room_template;
 
         int combo_counter = 0;
         int combo_score_step_count = 5;

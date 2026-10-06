@@ -6,12 +6,20 @@ Board::Board(int board_width, int board_height)
         Reset();
     }
 
+void Board::Initialize(int init_width, int init_height) {
+    width = init_width;
+    height = init_height;
+    Reset();
+}
+
 void Board::Reset() {
+    cells.clear();
     walls.clear();
     // implement board cell
     cells = std::vector<std::vector<BoardCell>> (width, std::vector<BoardCell>(height));
     CreateBoundaryWalls();
     CreateGround();
+    SetCell(GridPosition{1,1},GAP);
 }
 
 void Board::Draw() const {
@@ -28,11 +36,11 @@ bool Board::IsInside(GridPosition position) const {
         position.y < height;
 }
 
-int Board::GetHeight() {
+int Board::GetHeight() const {
     return height;
 }
 
-int Board::GetWidth() {
+int Board::GetWidth() const {
     return width;
 }
 
@@ -79,14 +87,14 @@ void Board::SetCell(GridPosition position, CellType type) {
     cells[position.x][position.y].type = type;
 }
 
-CellType Board::GetCellType(GridPosition position) {
+CellType Board::GetCellType(GridPosition position) const {
     if (!IsInside(position)) {
         return NONE;
     }
     return cells[position.x][position.y].type;
 }
 
-bool Board::IsWalkable(GridPosition position) {
+bool Board::IsWalkable(GridPosition position) const {
     CellType _type = GetCellType(position);
     switch(_type) {
         case NONE:
@@ -106,7 +114,7 @@ bool Board::IsWalkable(GridPosition position) {
     }
 }
 
-bool Board::IsLethal(GridPosition position) {
+bool Board::IsLethal(GridPosition position) const {
     CellType _type = GetCellType(position);
     switch(_type) {
         case NONE:
@@ -125,7 +133,7 @@ bool Board::IsLethal(GridPosition position) {
             return false;
     }
 }
-bool Board::IsDoor(GridPosition position) {
+bool Board::IsDoor(GridPosition position) const {
     CellType _type = GetCellType(position);
     switch(_type) {
         case NONE:

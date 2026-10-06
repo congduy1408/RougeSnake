@@ -13,6 +13,17 @@ void game::InitGameObject() {
 
     spawn_food.SetFoodPosition(spawn_snake, board);
     last_get_time = GetTime();
+
+
+    // test reading map file
+    bool sts = room_template.LoadFromFile("map/testmap_left_gap.json");
+    std::cout << "map name: " << room_template.GetName() << std::endl;
+    std::cout << "map width: " << room_template.GetWidth() << std::endl;
+    std::cout << "map height: " << room_template.GetHeight() << std::endl;
+    std::cout << "layer: " << room_template.GetLayers()[0].name << std::endl;
+    std::cout << "cell name: " << room_template.GetLayers()[0].cells[489].name << std::endl;
+    std::cout << "cell x: " << room_template.GetLayers()[0].cells[489].position.x << std::endl;
+    std::cout << "cell y: " << room_template.GetLayers()[0].cells[489].position.y << std::endl;
 }
 
 void game::Draw() {
@@ -76,6 +87,10 @@ void game::FixUpdate(float interval) {
     }
     //// move to game over
     if (!board.IsWalkable(spawn_snake.body.front().position)) {
+        state.currentScreen = GAMEOVER;
+        return;
+    }
+    if (board.IsLethal(spawn_snake.body.front().position)) {
         state.currentScreen = GAMEOVER;
         return;
     }
