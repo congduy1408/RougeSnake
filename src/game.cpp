@@ -75,7 +75,7 @@ void game::FixUpdate(float interval) {
         return;
     }
     //// move to game over
-    if (board.IsBlocked(spawn_snake.body.front().position)) {
+    if (!board.IsWalkable(spawn_snake.body.front().position)) {
         state.currentScreen = GAMEOVER;
         return;
     }

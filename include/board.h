@@ -3,6 +3,7 @@
 #include "wall.h"
 
 enum CellType {
+    NONE,
     GROUND,
     WALL,
     GAP,
@@ -11,7 +12,7 @@ enum CellType {
 };
 
 struct BoardCell {
-    CellType type;
+    CellType type = NONE;
 };
 
 class Board {
@@ -20,19 +21,28 @@ class Board {
 
         void Reset();
         bool IsInside(GridPosition position) const;
-        bool IsBlocked(GridPosition position) const;
-        void AddWall(GridPosition position);
+        void AddCell(GridPosition position, CellType type);
         void Draw() const;
         int GetWidth();
         int GetHeight();
+
+        // implement board cell
+        void SetCell(GridPosition position, CellType type);
+        CellType GetCellType(GridPosition position);
+        bool IsWalkable(GridPosition position);
+        bool IsLethal(GridPosition position);
+        bool IsDoor(GridPosition position);
     private:
         int width;
         int height;
 
-        std::vector<bool> blocked_cells;
         std::vector<Brick> walls;
 
-        int ToIndex(GridPosition position) const;
+        // implement Board cell
+        std::vector<std::vector<BoardCell>> cells;
+        
         void CreateBoundaryWalls();
+        // test add ground
+        void CreateGround();
 
 };

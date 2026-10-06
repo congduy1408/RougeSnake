@@ -8,8 +8,10 @@ Board::Board(int board_width, int board_height)
 
 void Board::Reset() {
     walls.clear();
-    blocked_cells.assign(width * height, false);
+    // implement board cell
+    cells = std::vector<std::vector<BoardCell>> (width, std::vector<BoardCell>(height));
     CreateBoundaryWalls();
+    CreateGround();
 }
 
 void Board::Draw() const {
@@ -26,13 +28,6 @@ bool Board::IsInside(GridPosition position) const {
         position.y < height;
 }
 
-bool Board::IsBlocked(GridPosition position) const {
-    if (!IsInside(position)) {
-        return true;
-    }
-    return blocked_cells[ToIndex(position)];
-}
-
 int Board::GetHeight() {
     return height;
 }
@@ -41,43 +36,58 @@ int Board::GetWidth() {
     return width;
 }
 
-void Board::AddWall(GridPosition position) {
+void Board::AddCell(GridPosition position, CellType type) {
     if (!IsInside(position)) {
         return;
     }
-    int index = ToIndex(position);
-    if (blocked_cells[index]) {
-        return;
-    }
-    blocked_cells[index] = true;
-    walls.emplace_back(position);
-}
 
-int Board::ToIndex(GridPosition position) const {
-    return position.y * width + position.x;
+    // for Draw
+    switch (type) {
+        case WALL:
+            walls.emplace_back(position);
+            break;
+        default:
+            break;
+    }
+
+    SetCell(position, type);
 }
 
 void Board::CreateBoundaryWalls() {
     for (int x=0; x<width; x++) {
-        AddWall(GridPosition{x, 0});
-        AddWall(GridPosition{x,height-1});
+        AddCell(GridPosition{x, 0}, WALL);
+        AddCell(GridPosition{x,height-1}, WALL);
     }
     for (int y=0; y<height; y++) {
-        AddWall(GridPosition{0, y});
-        AddWall(GridPosition{width-1, y});
+        AddCell(GridPosition{0, y}, WALL);
+        AddCell(GridPosition{width-1, y}, WALL);
+    }
+}
+
+void Board::CreateGround() {
+    for (int x=1;x<width-1;x++) {
+        for (int y=1;y<height-1; y++) {
+            AddCell(GridPosition{x,y},GROUND);
+        }
     }
 }
 
 void Board::SetCell(GridPosition position, CellType type) {
+    if (!IsInside(position)) {
+        return;
+    }
     cells[position.x][position.y].type = type;
 }
 
-CellType Board::GetCell(GridPosition position) {
+CellType Board::GetCellType(GridPosition position) {
+    if (!IsInside(position)) {
+        return NONE;
+    }
     return cells[position.x][position.y].type;
 }
 
 bool Board::IsWalkable(GridPosition position) {
-    CellType _type = cells[position.x][position.y].type;
+    CellType _type = GetCellType(position);
     switch(_type) {
         case NONE:
             return  false;
@@ -97,7 +107,7 @@ bool Board::IsWalkable(GridPosition position) {
 }
 
 bool Board::IsLethal(GridPosition position) {
-    CellType _type = cells[position.x][position.y].type;
+    CellType _type = GetCellType(position);
     switch(_type) {
         case NONE:
             return  false;
@@ -116,7 +126,7 @@ bool Board::IsLethal(GridPosition position) {
     }
 }
 bool Board::IsDoor(GridPosition position) {
-    CellType _type = cells[position.x][position.y].type;
+    CellType _type = GetCellType(position);
     switch(_type) {
         case NONE:
             return  false;
