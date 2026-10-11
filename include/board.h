@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 #include "wall.h"
+#include "game_textures.h"
 
 enum CellType {
     NONE,
@@ -21,8 +22,7 @@ class Board {
         void Initialize(int width, int height);
         void Reset();
         bool IsInside(GridPosition position) const;
-        void AddCell(GridPosition position, CellType type);
-        void Draw() const;
+        void Draw(const GameTextures& textures);
         int GetWidth() const;
         int GetHeight() const;
 
@@ -36,13 +36,6 @@ class Board {
         int width;
         int height;
 
-        std::vector<Brick> walls;
-
         // implement Board cell
         std::vector<std::vector<BoardCell>> cells;
-        
-        void CreateBoundaryWalls();
-        // test add ground
-        void CreateGround();
-
 };

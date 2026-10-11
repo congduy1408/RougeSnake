@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 #include "include/gameobject.h"
+#include "game_textures.h"
 
 class Board;
 
@@ -20,9 +21,7 @@ class Food: public GameObject {
         bool UpdateBoundaryScore(GridPosition snake_pos);
         int GetScore();
         void ResetScore();
-        void SetFoodPosition(Snake& snake);
         void SetFoodPosition(Snake& snake, Board& board);
-        void Draw();
+        void Draw(const GameTextures& textures);
         void Update();
-        void OnSnakeEnter(Snake& snake) override;
 };

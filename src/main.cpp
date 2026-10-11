@@ -2,7 +2,7 @@
 #include "include/snake.h"
 #include "include/food.h"
 #include "include/game.h"
-
+#include "include/game_textures.h"
 #include <algorithm>
 
 int main() 
@@ -14,8 +14,12 @@ int main()
     double accumulated_time = 0.0;
 
     {
+        GameTextures textures;
+        textures.LoadAll();
         game game;
-        game.InitGameObject();
+        if (!game.InitGameObject()) {
+            return false;
+        }
         // std::cout << spawn_food.position << std::endl;
         while (!WindowShouldClose())
         {
@@ -32,11 +36,11 @@ int main()
             // Drawing
             BeginDrawing();
             ClearBackground(BLACK);
-            game.Draw();
+            game.Draw(textures);
             EndDrawing();
         }
+        textures.UnLoadAll();
     }
-    
     CloseWindow();
 }
 

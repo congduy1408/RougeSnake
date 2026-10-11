@@ -6,16 +6,20 @@
 #include "include/gamestate.h"
 #include "include/board.h"
 #include "include/room_template.h"
+#include "include/room.h"
+#include "include/game_textures.h"
 
 class game {
     public:
         gamestate state;
 
         Board board{cellcount_width, cellcount_height};
+        
         Snake spawn_snake;
         Food spawn_food;
         RoomTemplate room_template;
-
+        Room room;
+        
         int combo_counter = 0;
         int combo_score_step_count = 5;
         float score_multiplier = 1;
@@ -23,8 +27,8 @@ class game {
         float score_multiplier_step = 0.5;
         float score_multiplier_max = 5;
         double last_get_time = 0.0;
-    void InitGameObject();
-    void Draw();
+    bool InitGameObject();
+    void Draw(const GameTextures& textures);
     void ReadInput();
     void FixUpdate(float interval);
 

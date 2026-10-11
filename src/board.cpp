@@ -9,24 +9,59 @@ Board::Board(int board_width, int board_height)
 void Board::Initialize(int init_width, int init_height) {
     width = init_width;
     height = init_height;
-    Reset();
+    cells = std::vector<std::vector<BoardCell>> (width, std::vector<BoardCell>(height));
 }
 
 void Board::Reset() {
-    cells.clear();
-    walls.clear();
-    // implement board cell
-    cells = std::vector<std::vector<BoardCell>> (width, std::vector<BoardCell>(height));
-    CreateBoundaryWalls();
-    CreateGround();
-    SetCell(GridPosition{1,1},GAP);
+    Initialize(cellcount_width, cellcount_height);
 }
 
-void Board::Draw() const {
-    for (const Brick& wall : walls)
-    {
-        wall.Draw();
+void Board::Draw(const GameTextures& textures) {
+    // for (const Brick& wall : walls)
+    // {
+    //     wall.Draw();
+    // }
+    Texture2D sprite = textures.GetTexture();
+    for(int x=0; x< cells.size(); x++) {
+        for (int y=0; y <cells[x].size(); y++) {
+            Rectangle draw_rect;
+            switch (cells[x][y].type) {
+                case GROUND:
+                    draw_rect = textures.GetSpriteRect(SpriteID::GROUND);
+                    break;
+                case WALL:
+                    draw_rect = textures.GetSpriteRect(SpriteID::WALL);
+                    break;
+                case GAP:
+                    draw_rect = textures.GetSpriteRect(SpriteID::GAP);
+                    break;
+                case ENTRANCE:
+                    draw_rect = textures.GetSpriteRect(SpriteID::ENTRANCE);
+                    break;
+                case DOOR:
+                    draw_rect = textures.GetSpriteRect(SpriteID::DOOR);
+                    break;
+                case NONE:
+                    continue;
+            }
+            Rectangle draw_dest = {
+                static_cast<float> (x*cellsize), 
+                static_cast<float> (y*cellsize),
+                static_cast<float> (cellsize),
+                static_cast<float> (cellsize)};
+            Vector2 origin = {0, 0};
+            float rotation = 0;
+            DrawTexturePro(
+                sprite,
+                draw_rect,
+                draw_dest,
+                origin,
+                rotation,
+                WHITE
+            );
+        }
     }
+
 }
 
 bool Board::IsInside(GridPosition position) const {
@@ -42,42 +77,6 @@ int Board::GetHeight() const {
 
 int Board::GetWidth() const {
     return width;
-}
-
-void Board::AddCell(GridPosition position, CellType type) {
-    if (!IsInside(position)) {
-        return;
-    }
-
-    // for Draw
-    switch (type) {
-        case WALL:
-            walls.emplace_back(position);
-            break;
-        default:
-            break;
-    }
-
-    SetCell(position, type);
-}
-
-void Board::CreateBoundaryWalls() {
-    for (int x=0; x<width; x++) {
-        AddCell(GridPosition{x, 0}, WALL);
-        AddCell(GridPosition{x,height-1}, WALL);
-    }
-    for (int y=0; y<height; y++) {
-        AddCell(GridPosition{0, y}, WALL);
-        AddCell(GridPosition{width-1, y}, WALL);
-    }
-}
-
-void Board::CreateGround() {
-    for (int x=1;x<width-1;x++) {
-        for (int y=1;y<height-1; y++) {
-            AddCell(GridPosition{x,y},GROUND);
-        }
-    }
 }
 
 void Board::SetCell(GridPosition position, CellType type) {

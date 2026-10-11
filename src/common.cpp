@@ -8,9 +8,9 @@ int screenHeight = cellsize * cellcount_height;
 float fix_update_time = 0.05;
 // float sprite_update_time = 0.05;
 
-GridPosition RandomPosition() {
-    int x = GetRandomValue(0, cellcount_width-1);
-    int y = GetRandomValue(0, cellcount_height - 1);
+GridPosition RandomPosition(GridPosition random_range) {
+    int x = GetRandomValue(0, random_range.x-1);
+    int y = GetRandomValue(0, random_range.y - 1);
     return GridPosition{x, y};
 }
 

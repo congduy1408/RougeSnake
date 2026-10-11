@@ -44,32 +44,43 @@ void Food::ResetScore() {
     snake_inside_boundary = false;
 }
 
-void Food::SetFoodPosition(Snake& snake) {
-    position = RandomPosition();
-    while(CollideSnakePosition(snake)) {
-        position = RandomPosition();
-    }
-    ResetScore();
-}
-
 void Food::SetFoodPosition(Snake& snake, Board& board) {
-    position = RandomPosition();
+    position = RandomPosition(GridPosition{board.GetWidth(), board.GetHeight()});
+    int  search_limit = board.GetHeight() * board.GetWidth();
     while(CollideSnakePosition(snake) || CollideWallPosition(board)) {
-        position = RandomPosition();
+        position = RandomPosition(GridPosition{board.GetWidth(), board.GetHeight()});
+        search_limit--;
+        if (search_limit == 0) {
+            TraceLog(LOG_ERROR, "Failed to spawn food");
+            break;
+        }
     }
     ResetScore();
 }
 
-void Food::Draw() {
+void Food::Draw(const GameTextures& textures) {
     DrawRectangleLines((position.x - 1) * cellsize, (position.y - 1) * cellsize, cellsize * 3, cellsize * 3, darkGreen);
-    DrawRectangle(position.x * cellsize, position.y * cellsize, cellsize, cellsize, darkGreen);
+    // DrawRectangle(position.x * cellsize, position.y * cellsize, cellsize, cellsize, darkGreen);
+    
     std::string score_text = std::to_string(score);
     DrawText(score_text.c_str(), position.x * cellsize, position.y * cellsize - cellsize, 14, darkGreen);
-}
-
-void Food::OnSnakeEnter(Snake& snake) {
-    snake.Grow();
-    SetFoodPosition(snake);
+    // draw food sprite
+    Rectangle draw_rect = textures.GetSpriteRect(SpriteID::FOOD);
+    Rectangle draw_dest = {
+                static_cast<float> (position.x*cellsize), 
+                static_cast<float> (position.y*cellsize),
+                static_cast<float> (cellsize),
+                static_cast<float> (cellsize)};
+    Vector2 origin = {0, 0};
+        float rotation = 0;
+        DrawTexturePro(
+            textures.GetTexture(),
+            draw_rect,
+            draw_dest,
+            origin,
+            rotation,
+            WHITE
+        );           
 }
 
 void Food::Update() {}

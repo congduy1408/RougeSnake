@@ -40,5 +40,5 @@ struct GridPosition
     }
 };
 
-GridPosition RandomPosition();
+GridPosition RandomPosition(GridPosition random_range);
 bool FixFrameUpdate(int fps, int &frame_counter);

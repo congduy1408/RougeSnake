@@ -1,40 +1,34 @@
 #include "include/game.h"
 
-void game::InitGameObject() {
+bool game::InitGameObject() {
     
     state = gamestate();
     state.currentScreen = MAIN_MENU;
     combo_counter = 0;
     score_multiplier = 1;
 
-    board.Reset();
+    if (!room_template.LoadFromFile("map/testmap_left_gap.json")) {
+        TraceLog(LOG_ERROR, "Failed to load room template");
+        return false;
+    }
+    room.Load(room_template, board);
     spawn_snake.Reset();
     spawn_food.ResetScore();
 
     spawn_food.SetFoodPosition(spawn_snake, board);
     last_get_time = GetTime();
-
-
-    // test reading map file
-    bool sts = room_template.LoadFromFile("map/testmap_left_gap.json");
-    std::cout << "map name: " << room_template.GetName() << std::endl;
-    std::cout << "map width: " << room_template.GetWidth() << std::endl;
-    std::cout << "map height: " << room_template.GetHeight() << std::endl;
-    std::cout << "layer: " << room_template.GetLayers()[0].name << std::endl;
-    std::cout << "cell name: " << room_template.GetLayers()[0].cells[489].name << std::endl;
-    std::cout << "cell x: " << room_template.GetLayers()[0].cells[489].position.x << std::endl;
-    std::cout << "cell y: " << room_template.GetLayers()[0].cells[489].position.y << std::endl;
+    return true;
 }
 
-void game::Draw() {
+void game::Draw(const GameTextures& textures) {
     switch (state.currentScreen) {
         case MAIN_MENU: {
             DrawText("Press Enter to start game", screenWidth/2 ,screenHeight/2, 20, darkGreen);
         } break;
         case STAGE: {
-            board.Draw();
-            spawn_snake.Draw();
-            spawn_food.Draw();
+            board.Draw(textures);
+            spawn_snake.Draw(textures);
+            spawn_food.Draw(textures);
             DrawText(TextFormat("Score: %.1f", state.score), 10,10, 20, darkGreen);
             DrawText(TextFormat("Combo: %d", combo_counter), 10,35, 20, darkGreen);
             DrawText(TextFormat("Multiplier: %.1fx", score_multiplier), 10,60, 20, darkGreen);

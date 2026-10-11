@@ -3,16 +3,10 @@
 Snake::Snake()
 {
     body.reserve(300);
-    snake_sprite = LoadTexture("sprite/snake.png");
-    SetTextureFilter(snake_sprite, TEXTURE_FILTER_POINT);
-    Reset();
+    // Reset();
 }
 
 Snake::~Snake() {
-    if (snake_sprite.id != 0)
-    {
-        UnloadTexture(snake_sprite);
-    }
 }
 
 void Snake::Reset() {
@@ -26,12 +20,12 @@ void Snake::Reset() {
     flip_frame = 1;
 
     body.clear();
-    body.push_back(snake_body{GridPosition{10,15}, dir_right, dir_right, false});
-    body.push_back(snake_body{GridPosition{9,15}, dir_right, dir_right, false});
-    body.push_back(snake_body{GridPosition{8,15}, dir_right, dir_right, false});
+    body.push_back(snake_body{GridPosition{3,1}, dir_right, dir_right, false});
+    body.push_back(snake_body{GridPosition{2,1}, dir_right, dir_right, false});
+    body.push_back(snake_body{GridPosition{1,1}, dir_right, dir_right, false});
 }
 
-void Snake::DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction dir) {
+void Snake::DrawSnakePart(const Texture2D& texture,Rectangle draw_sprite, Rectangle draw_pos,direction dir) {
     Vector2 origin = {draw_pos.width/2, draw_pos.height/2};
     float rotation = 0;
     switch(dir) {
@@ -51,7 +45,7 @@ void Snake::DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction di
             break;
     }
     DrawTexturePro(
-        snake_sprite,
+        texture,
         draw_sprite,
         draw_pos,
         origin,
@@ -60,55 +54,48 @@ void Snake::DrawSnakePart(Rectangle draw_sprite, Rectangle draw_pos,direction di
     );
 }
 
-void Snake::Draw() {
-    // if (FixFrameUpdate(fps, frame_counter)) {
-    //     flip_frame = flip_frame * -1;
-    // }
-    auto MakeMirroredSprite = [this](float x, float y) {
-        return Rectangle{x, y, 16.0f, 16.0f * flip_frame};
-    };
+void Snake::Draw(const GameTextures& textures) {
 
     for (unsigned int i=0; i<body.size(); i++) {
-        // draw head
-        // Rectangle bodypart = Rectangle{body[i].x * cellsize, body[i].y * cellsize, cellsize, cellsize};
-        // DrawRectangleRounded(bodypart, 0.1, 0.5, darkGreen);
-
         // adding cell/2 due to define origin (cell/2, cell/2), function will re calculate the dest by decrease it position by cell/2, so we adding the cell/2 to offset that
         Rectangle draw_pos = 
         {   body[i].position.x * cellsize + cellsize/2, 
             body[i].position.y * cellsize + cellsize/2,
-            16,
-            16
+            cellsize,
+            cellsize
         };
         if (i==0) {
-            Rectangle head_sprite = MakeMirroredSprite(32.0f, 0.0f);
-            DrawSnakePart(head_sprite, draw_pos, body[i].cur_dir);
+            Rectangle head_sprite = textures.GetSpriteRect(SpriteID::SNAKE_HEAD);
+            head_sprite.height *= flip_frame;
+            DrawSnakePart(textures.GetTexture(), head_sprite, draw_pos, body[i].cur_dir);
         }
         // draw tail
         else if (i==body.size()-1) {
-            Rectangle tail_sprite = MakeMirroredSprite(0.0f, 0.0f);
-            DrawSnakePart(tail_sprite, draw_pos, body[i].cur_dir);
+            Rectangle tail_sprite = textures.GetSpriteRect(SpriteID::SNAKE_TAIL);
+            tail_sprite.height *= flip_frame;
+            DrawSnakePart(textures.GetTexture(),tail_sprite, draw_pos, body[i].cur_dir);
         }
         else if (body[i].is_turn) {
-            Rectangle head_sprite = Rectangle{32.0f, 16.0f, 16.0f, 16.0f};
+            Rectangle turn_sprite = textures.GetSpriteRect(SpriteID::SNAKE_TURN);
             if ((body[i].pre_dir == dir_right && body[i].cur_dir == dir_down) ||
                 (body[i].pre_dir == dir_up && body[i].cur_dir == dir_left)) {
-                    DrawSnakePart(head_sprite, draw_pos, dir_right);
+                    DrawSnakePart(textures.GetTexture(),turn_sprite, draw_pos, dir_right);
             } else if ((body[i].pre_dir == dir_right && body[i].cur_dir == dir_up) ||
                 (body[i].pre_dir == dir_down && body[i].cur_dir == dir_left)) {
-                    DrawSnakePart(head_sprite, draw_pos, dir_down);
+                    DrawSnakePart(textures.GetTexture(),turn_sprite, draw_pos, dir_down);
             } else if ((body[i].pre_dir == dir_down && body[i].cur_dir == dir_right) ||
                 (body[i].pre_dir == dir_left && body[i].cur_dir == dir_up)) {
-                    DrawSnakePart(head_sprite, draw_pos, dir_left);
+                    DrawSnakePart(textures.GetTexture(),turn_sprite, draw_pos, dir_left);
             } else if ((body[i].pre_dir == dir_left && body[i].cur_dir == dir_down) ||
                 (body[i].pre_dir == dir_up && body[i].cur_dir == dir_right)) {
-                    DrawSnakePart(head_sprite, draw_pos, dir_up);
+                    DrawSnakePart(textures.GetTexture(),turn_sprite, draw_pos, dir_up);
                 }
         }
         // draw body
         else {
-            Rectangle body_sprite = MakeMirroredSprite(16.0f, 0.0f);
-            DrawSnakePart(body_sprite, draw_pos, body[i].cur_dir);
+            Rectangle body_sprite = textures.GetSpriteRect(SpriteID::SNAKE_BODY);
+            body_sprite.height *= flip_frame;
+            DrawSnakePart(textures.GetTexture(),body_sprite, draw_pos, body[i].cur_dir);
         }
         // draw turn body  
         // std::cout << "body turn[" << i<< "] " << body[i].is_turn << std::endl;
@@ -189,25 +176,25 @@ void Snake::Grow() {
 }
 
 // snakestate snake::CheckSnakeState(gamestate &gamestate, food &food) {
-void Snake::CheckSnakeState() {
-    // check hit wall
-    if (body.front().position.x > cellcount_width ||
-        body.front().position.x < 0 ||
-        body.front().position.y > cellcount_height ||
-        body.front().position.y < 0
-    ) {
-        // gamestate.currentScreen = GAMEOVER;
+// void Snake::CheckSnakeState() {
+//     // check hit wall
+//     if (body.front().position.x > cellcount_width ||
+//         body.front().position.x < 0 ||
+//         body.front().position.y > cellcount_height ||
+//         body.front().position.y < 0
+//     ) {
+//         // gamestate.currentScreen = GAMEOVER;
 
-    }
-    // check hit itslef -> cut tail
-    for (unsigned int i=1; i < body.size(); i++) {
-        if (body.front().position == body[i].position) {
-            // std::cout << 'cut index:' << i << std::endl;
-            TailCut(i);
-            break;
-        }
-    }
-}
+//     }
+//     // check hit itslef -> cut tail
+//     for (unsigned int i=1; i < body.size(); i++) {
+//         if (body.front().position == body[i].position) {
+//             // std::cout << 'cut index:' << i << std::endl;
+//             TailCut(i);
+//             break;
+//         }
+//     }
+// }
 
 void Snake::FixedUpdateAnimation(float delta_time) {
     animation_elapsed += delta_time;
@@ -238,7 +225,7 @@ bool Snake::UpdateMovement(float delta_time) {
     }
 
     MoveSnake();
-    CheckSnakeState();
+    // CheckSnakeState();
 
     return true;
 }
