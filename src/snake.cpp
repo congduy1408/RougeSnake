@@ -9,28 +9,29 @@ Snake::Snake()
 Snake::~Snake() {
 }
 
-void Snake::Reset(Room& room, Board& board) {
+void Snake::Reset(Room& room) {
     // setting snake init move direction by checking entrance position
     GridPosition spawn_pos = room.GetEntrance();
-    if (spawn_pos.x == 0) { 
+    DoorSide door_side = room.GetDoorSide(spawn_pos);
+    if (door_side == DoorSide::LEFT) { 
         snake_move = dir_right;
         queued_direction = dir_right;
         spawn_pos.x += 1;
-    } else if (spawn_pos.x == board.GetWidth() - 1) { 
+    } else if (door_side == DoorSide::RIGHT) { 
         snake_move = dir_left;
         queued_direction = dir_left;
         spawn_pos.x -= 1;
-    } else if (spawn_pos.y == 0) { 
+    } else if (door_side == DoorSide::UP) { 
         snake_move = dir_down;
         queued_direction = dir_down;
         spawn_pos.y += 1;
-    } else if (spawn_pos.y == board.GetHeight() - 1) { 
+    } else if (door_side == DoorSide::DOWN) { 
         snake_move = dir_up;
         queued_direction = dir_up;
         spawn_pos.y -= 1;
-    } 
+    }
     
-    has_queued_direction =false;
+    has_queued_direction = false;
     movement_elapsed = 0.0f;
     animation_elapsed = 0.0f;
 
@@ -77,13 +78,15 @@ void Snake::DrawSnakePart(const Texture2D& texture,Rectangle draw_sprite, Rectan
 
 void Snake::Draw(const GameTextures& textures) {
 
-    for (unsigned int i=0; i<body.size(); i++) {
+    // for (unsigned int i=0; i<body.size(); i++) {
+    for (int i=body.size()-1; i >= 0; i--) {
         // adding cell/2 due to define origin (cell/2, cell/2), function will re calculate the dest by decrease it position by cell/2, so we adding the cell/2 to offset that
         Rectangle draw_pos = 
-        {   body[i].position.x * cellsize + cellsize/2, 
-            body[i].position.y * cellsize + cellsize/2,
-            cellsize,
-            cellsize
+        {   
+            static_cast<float> (body[i].position.x * cellsize + cellsize/2.0f), 
+            static_cast<float> (body[i].position.y * cellsize + cellsize/2.0f),
+            static_cast<float> (cellsize),
+            static_cast<float> (cellsize)
         };
         if (i==0) {
             Rectangle head_sprite = textures.GetSpriteRect(SpriteID::SNAKE_HEAD);
@@ -262,10 +265,10 @@ void Snake::SetMovementInterval(float interval) {
 }
 
 bool Snake::IsUnfolding() {
-    return unfold_steps < init_length - 1;
+    return unfold_steps < static_cast<int>(body.size()) - 1;
 }
 
 
 bool Snake::IsInvicible() {
-    return IsUnfolding();
+    return unfold_steps < 2;
 }

@@ -12,9 +12,12 @@ bool game::InitGameObject() {
         return false;
     }
     TraceLog(LOG_INFO, "Loading room...");
-    room.Load(room_template, board);
+    if (!room.Load(room_template, board)) {
+        TraceLog(LOG_ERROR, "Failed to load room");
+        return false;        
+    }
     TraceLog(LOG_INFO, "Resetting snake...");
-    spawn_snake.Reset(room, board);
+    spawn_snake.Reset(room);
     spawn_food.ResetScore();
 
     TraceLog(LOG_INFO, "Spawning food...");

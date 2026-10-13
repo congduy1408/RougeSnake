@@ -2,7 +2,6 @@
 #include "include/common.h"
 #include "include/snake.h"
 #include "include/food.h"
-#include "include/wall.h"
 #include "include/gamestate.h"
 #include "include/board.h"
 #include "include/room_template.h"

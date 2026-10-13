@@ -21,7 +21,7 @@ class Snake {
         Snake(const Snake&) = delete;
         Snake& operator=(const Snake&) = delete;
 
-        void Reset(Room& room, Board& board);
+        void Reset(Room& room);
         void Draw(const GameTextures& textures);
         void TailCut(int cut_index);
         void ReadInput();
