@@ -17,7 +17,7 @@ enum class SpriteID {
 class GameTextures {
     public:
         bool LoadAll();
-        bool UnLoadAll();
+        void UnLoadAll();
 
         const Texture2D& GetTexture() const;
         Rectangle GetSpriteRect(SpriteID id) const;

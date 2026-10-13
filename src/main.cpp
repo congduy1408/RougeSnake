@@ -15,10 +15,16 @@ int main()
 
     {
         GameTextures textures;
-        textures.LoadAll();
+        if (!textures.LoadAll()) {
+            textures.UnLoadAll();
+            CloseWindow();
+            return 1;
+        }
         game game;
         if (!game.InitGameObject()) {
-            return false;
+            textures.UnLoadAll();
+            CloseWindow();
+            return 1;
         }
         // std::cout << spawn_food.position << std::endl;
         while (!WindowShouldClose())

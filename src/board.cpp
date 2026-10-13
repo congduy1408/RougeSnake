@@ -83,6 +83,8 @@ void Board::SetCell(GridPosition position, CellType type) {
     if (!IsInside(position)) {
         return;
     }
+    if (cells[position.x][position.y].type == ENTRANCE) return;
+    if (cells[position.x][position.y].type == DOOR) return;
     cells[position.x][position.y].type = type;
 }
 

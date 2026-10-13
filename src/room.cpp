@@ -2,6 +2,7 @@
 
 void Room::Load(const RoomTemplate& _template, Board& _board) {
     // Init board
+    exits.clear();
     _board.Initialize(_template.GetWidth(), _template.GetHeight());
     // reading room template
     for (const auto& layer : _template.GetLayers()) {
@@ -12,7 +13,10 @@ void Room::Load(const RoomTemplate& _template, Board& _board) {
             // get cell position
             if (get_result) {
                 _board.SetCell(cell.position, type);
+                if (type == ENTRANCE) entrance = cell.position;
+                if (type == DOOR) exits.push_back(cell.position);
             }
+
         }
     }
 }
@@ -41,4 +45,11 @@ bool Room::TryGetCellType(std::string cell_name, CellType& output_type) {
     else {
         return false;
     }
+}
+
+GridPosition Room::GetEntrance() const {
+    return entrance;
+}
+const std::vector<GridPosition>& Room::GetExit() const {
+    return exits;
 }

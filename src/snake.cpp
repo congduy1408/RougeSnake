@@ -9,9 +9,27 @@ Snake::Snake()
 Snake::~Snake() {
 }
 
-void Snake::Reset() {
-    snake_move = dir_right;
-    queued_direction = dir_right;
+void Snake::Reset(Room& room, Board& board) {
+    // setting snake init move direction by checking entrance position
+    GridPosition spawn_pos = room.GetEntrance();
+    if (spawn_pos.x == 0) { 
+        snake_move = dir_right;
+        queued_direction = dir_right;
+        spawn_pos.x += 1;
+    } else if (spawn_pos.x == board.GetWidth() - 1) { 
+        snake_move = dir_left;
+        queued_direction = dir_left;
+        spawn_pos.x -= 1;
+    } else if (spawn_pos.y == 0) { 
+        snake_move = dir_down;
+        queued_direction = dir_down;
+        spawn_pos.y += 1;
+    } else if (spawn_pos.y == board.GetHeight() - 1) { 
+        snake_move = dir_up;
+        queued_direction = dir_up;
+        spawn_pos.y -= 1;
+    } 
+    
     has_queued_direction =false;
     movement_elapsed = 0.0f;
     animation_elapsed = 0.0f;
@@ -20,9 +38,12 @@ void Snake::Reset() {
     flip_frame = 1;
 
     body.clear();
-    body.push_back(snake_body{GridPosition{3,1}, dir_right, dir_right, false});
-    body.push_back(snake_body{GridPosition{2,1}, dir_right, dir_right, false});
-    body.push_back(snake_body{GridPosition{1,1}, dir_right, dir_right, false});
+
+    unfold_steps = 0;
+    
+    for (int i=0; i< init_length; i++) {
+        body.push_back(snake_body{spawn_pos, snake_move, snake_move, false});
+    }
 }
 
 void Snake::DrawSnakePart(const Texture2D& texture,Rectangle draw_sprite, Rectangle draw_pos,direction dir) {
@@ -151,6 +172,9 @@ void Snake::MoveSnake() {
     body.pop_back();
     body.insert(body.begin(), new_head);
     body.front().is_turn = false;
+    if (IsUnfolding()) {
+        unfold_steps++; // snake make a valid move, increase unfold_step
+    }
     switch (snake_move) {
         case dir_up:
             body.front().position.y -= 1;
@@ -235,4 +259,13 @@ void Snake::SetMovementInterval(float interval) {
     {
         movement_interval = interval;
     }
+}
+
+bool Snake::IsUnfolding() {
+    return unfold_steps < init_length - 1;
+}
+
+
+bool Snake::IsInvicible() {
+    return IsUnfolding();
 }

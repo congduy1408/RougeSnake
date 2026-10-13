@@ -1,6 +1,5 @@
 #pragma once
 #include "common.h"
-#include "wall.h"
 #include "game_textures.h"
 
 enum CellType {

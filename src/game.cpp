@@ -7,16 +7,20 @@ bool game::InitGameObject() {
     combo_counter = 0;
     score_multiplier = 1;
 
-    if (!room_template.LoadFromFile("map/testmap_left_gap.json")) {
+    if (!room_template.LoadFromFile("map/testmap_down.json")) {
         TraceLog(LOG_ERROR, "Failed to load room template");
         return false;
     }
+    TraceLog(LOG_INFO, "Loading room...");
     room.Load(room_template, board);
-    spawn_snake.Reset();
+    TraceLog(LOG_INFO, "Resetting snake...");
+    spawn_snake.Reset(room, board);
     spawn_food.ResetScore();
 
+    TraceLog(LOG_INFO, "Spawning food...");
     spawn_food.SetFoodPosition(spawn_snake, board);
     last_get_time = GetTime();
+    TraceLog(LOG_INFO, "Initialization completed");
     return true;
 }
 

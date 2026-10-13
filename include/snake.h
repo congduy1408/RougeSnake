@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 #include "game_textures.h"
+#include "room.h"
 
 struct snake_body {
     GridPosition position;
@@ -20,7 +21,7 @@ class Snake {
         Snake(const Snake&) = delete;
         Snake& operator=(const Snake&) = delete;
 
-        void Reset();
+        void Reset(Room& room, Board& board);
         void Draw(const GameTextures& textures);
         void TailCut(int cut_index);
         void ReadInput();
@@ -45,7 +46,14 @@ class Snake {
 
         int frame_counter = 0;
         int flip_frame = 1;
+
+        int unfold_steps = 0;
+        int init_length = 3;
+
+
         void DrawSnakePart(const Texture2D& texture, Rectangle draw_sprite, Rectangle draw_pos,direction dir);
         void MoveSnake();
-        // void CheckSnakeState();
+        
+        bool IsUnfolding();
+        bool IsInvicible();
 };

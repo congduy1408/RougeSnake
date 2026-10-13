@@ -9,10 +9,9 @@ bool GameTextures::LoadAll() {
     SetTextureFilter(gametexture, TEXTURE_FILTER_POINT);
     return true;
 }
-bool GameTextures::UnLoadAll() {
+void GameTextures::UnLoadAll() {
     if (IsTextureValid(gametexture)) UnloadTexture(gametexture);
     gametexture = {};
-    return true;
 }
 
 const Texture2D& GameTextures::GetTexture() const{
