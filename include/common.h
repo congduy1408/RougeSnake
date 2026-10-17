@@ -23,6 +23,14 @@ enum direction {
     dir_right
 };
 
+enum class DoorSide {
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT,
+    INVALID
+};
+
 struct GridPosition
 {
     int x = 0;

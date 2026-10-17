@@ -1,0 +1,15 @@
+{
+    "room_left": [
+        "map/testmap_left.json",
+        "map/testmap_left_gap.json"
+    ],
+    "room_right": [
+        "map/testmap_right.json"
+    ],
+    "room_up": [
+        "map/testmap_up.json"
+    ],
+    "room_down": [
+        "map/testmap_down.json"
+    ]
+}

@@ -4,14 +4,6 @@
 #include "room_template.h"
 #include "board.h"
 
-enum class DoorSide {
-    UP,
-    DOWN,
-    LEFT,
-    RIGHT,
-    INVALID
-};
-
 struct ObjectMarker {
     std::string name;
     GridPosition position;

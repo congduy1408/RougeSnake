@@ -26,3 +26,16 @@ class RoomTemplate {
         bool LoadFromFile(const std::string& path);
 };
 
+
+class RoomCatalog {
+    private:
+        std::vector<std::string> room_left;
+        std::vector<std::string> room_right;
+        std::vector<std::string> room_up;
+        std::vector<std::string> room_down;
+    public:
+        bool LoadAll(const std::string& manifest_path);
+        std::string SelectRandom(
+            DoorSide required_entrance
+        ) const;
+};

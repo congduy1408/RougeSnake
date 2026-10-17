@@ -1,5 +1,8 @@
 #include "include/game.h"
 
+
+game::game(const RoomCatalog& catalog) : room_catalog(catalog) { }
+
 bool game::InitGameObject() {
     
     state = gamestate();
@@ -25,6 +28,55 @@ bool game::InitGameObject() {
     last_get_time = GetTime();
     TraceLog(LOG_INFO, "Initialization completed");
     return true;
+}
+
+bool game::Transition(DoorSide side) {
+    // read random map from door side
+    DoorSide opposite_side = GetOppositeSide(side);
+    // load room template
+    std::string room_path = room_catalog.SelectRandom(opposite_side);
+    if (room_path.empty()) {
+        TraceLog(LOG_ERROR, "Empty room list");
+        return false;
+    }
+    RoomTemplate temp_template;
+    if (!temp_template.LoadFromFile(room_path)) {
+        TraceLog(LOG_ERROR, "Failed to load room template");
+        return false;
+    }
+    // load room + board
+    if (!room.Load(temp_template, board)) {
+        TraceLog(LOG_ERROR, "Failed to load room");
+        return false;        
+    }
+    room_template = std::move(temp_template);
+    // spawn snake + food
+    TraceLog(LOG_INFO, "Resetting snake...");
+    spawn_snake.Reset(room);
+
+    TraceLog(LOG_INFO, "Spawning food...");
+    spawn_food.SetFoodPosition(spawn_snake, board);
+    return true;
+}
+
+DoorSide game::GetOppositeSide(DoorSide side) {
+    switch (side) {
+        case DoorSide::DOWN:
+            return DoorSide::UP;
+            break;
+        case DoorSide::UP:
+            return DoorSide::DOWN;
+            break;
+        case DoorSide::LEFT:
+            return DoorSide::RIGHT;
+            break;
+        case DoorSide::RIGHT:
+            return DoorSide::LEFT;
+            break;
+        default:
+            return DoorSide::INVALID;
+            break;
+    }
 }
 
 void game::Draw(const GameTextures& textures) {
@@ -86,27 +138,41 @@ void game::FixUpdate(float interval) {
     {
         return;
     }
+    GridPosition head_pos = spawn_snake.GetHeadPosition();
     //// move to game over
-    if (!board.IsWalkable(spawn_snake.body.front().position)) {
+    if (!board.IsWalkable(head_pos)) {
         state.currentScreen = GAMEOVER;
         return;
     }
-    if (board.IsLethal(spawn_snake.body.front().position)) {
+    if (board.IsLethal(head_pos)) {
         state.currentScreen = GAMEOVER;
         return;
+    }
+    // Check snake move to exit door
+    if (board.IsDoor(head_pos)) {
+        // check door side
+        DoorSide exit_side = room.GetDoorSide(head_pos);
+        // call change room function
+        if (exit_side != DoorSide::INVALID) {
+            TraceLog(LOG_INFO, "Snake reached exit door %d", exit_side);
+            
+            // adding transition logic
+            Transition(exit_side);
+            return; // stop process other gameobject for prepare next room
+        }
     }
     // check snake collision with food
     //// grow snake, get score, update combo, spawn new food
     //// reset combo if snake move out of food boundary
-    if (spawn_food.IsAt(spawn_snake.body.front().position)) {
+    if (spawn_food.IsAt(head_pos)) {
         HandleFoodCollision();
     }
-    else if (spawn_food.UpdateBoundaryScore(
-                 spawn_snake.body.front().position))
+    else if (spawn_food.UpdateBoundaryScore(head_pos))
     {
         combo_counter = 0;
         score_multiplier = 1.0f;
     }
+
 }
 
 void game::HandleFoodCollision() {

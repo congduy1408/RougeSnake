@@ -20,7 +20,12 @@ int main()
             CloseWindow();
             return 1;
         }
-        game game;
+        RoomCatalog catalog;
+        if (!catalog.LoadAll("map/map_manifest.json")) {
+            CloseWindow();
+            return 1;
+        }
+        game game(catalog);
         if (!game.InitGameObject()) {
             textures.UnLoadAll();
             CloseWindow();

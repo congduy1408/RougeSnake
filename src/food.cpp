@@ -16,7 +16,7 @@ bool Food::CollideSnakePosition(Snake& snake) {
 } 
 
 bool Food::CollideWallPosition(Board& board) {
-    return !board.IsWalkable(position) || board.IsLethal(position);
+    return !board.IsWalkable(position) || board.IsLethal(position) || board.IsDoor(position);
 }
 
 bool Food::IsInsideBoundary(GridPosition pos) {

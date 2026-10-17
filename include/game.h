@@ -9,6 +9,9 @@
 #include "include/game_textures.h"
 
 class game {
+    private:
+        const RoomCatalog& room_catalog;
+        DoorSide GetOppositeSide(DoorSide side);
     public:
         gamestate state;
 
@@ -26,14 +29,17 @@ class game {
         float score_multiplier_step = 0.5;
         float score_multiplier_max = 5;
         double last_get_time = 0.0;
-    bool InitGameObject();
-    void Draw(const GameTextures& textures);
-    void ReadInput();
-    void FixUpdate(float interval);
 
-    // bool SnakeCollision(const Snake& snake, const GameObject& object) const;
-    
-    void HandleFoodCollision();
-    void UpdateComboCounter(int food_score, int food_max_score);
-    float GetFoodScoreWithCombo(int food_score);
+        game(const RoomCatalog& catalog);
+        bool InitGameObject();
+        bool Transition(DoorSide side);
+        void Draw(const GameTextures& textures);
+        void ReadInput();
+        void FixUpdate(float interval);
+
+        // bool SnakeCollision(const Snake& snake, const GameObject& object) const;
+        
+        void HandleFoodCollision();
+        void UpdateComboCounter(int food_score, int food_max_score);
+        float GetFoodScoreWithCombo(int food_score);
 };

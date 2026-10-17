@@ -30,7 +30,7 @@ void Snake::Reset(Room& room) {
         queued_direction = dir_up;
         spawn_pos.y -= 1;
     }
-    
+    TraceLog(LOG_ERROR, "snake spawn direction: %d", door_side);
     has_queued_direction = false;
     movement_elapsed = 0.0f;
     animation_elapsed = 0.0f;
@@ -39,6 +39,41 @@ void Snake::Reset(Room& room) {
     flip_frame = 1;
 
     body.clear();
+
+    unfold_steps = 0;
+    
+    for (int i=0; i< init_length; i++) {
+        body.push_back(snake_body{spawn_pos, snake_move, snake_move, false});
+    }
+}
+
+void Snake::EnterRoom(Room& room) {
+    // setting snake init move direction by checking entrance position
+    GridPosition spawn_pos = room.GetEntrance();
+    DoorSide door_side = room.GetDoorSide(spawn_pos);
+    if (door_side == DoorSide::LEFT) { 
+        snake_move = dir_right;
+        queued_direction = dir_right;
+        spawn_pos.x += 1;
+    } else if (door_side == DoorSide::RIGHT) { 
+        snake_move = dir_left;
+        queued_direction = dir_left;
+        spawn_pos.x -= 1;
+    } else if (door_side == DoorSide::UP) { 
+        snake_move = dir_down;
+        queued_direction = dir_down;
+        spawn_pos.y += 1;
+    } else if (door_side == DoorSide::DOWN) { 
+        snake_move = dir_up;
+        queued_direction = dir_up;
+        spawn_pos.y -= 1;
+    }
+    has_queued_direction = false;
+    movement_elapsed = 0.0f;
+    animation_elapsed = 0.0f;
+
+    frame_counter = 0;
+    flip_frame = 1;
 
     unfold_steps = 0;
     
@@ -271,4 +306,8 @@ bool Snake::IsUnfolding() {
 
 bool Snake::IsInvicible() {
     return unfold_steps < 2;
+}
+
+GridPosition Snake::GetHeadPosition() const {
+    return body.front().position;
 }

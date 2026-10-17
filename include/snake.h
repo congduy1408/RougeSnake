@@ -22,6 +22,7 @@ class Snake {
         Snake& operator=(const Snake&) = delete;
 
         void Reset(Room& room);
+        void EnterRoom(Room& room);
         void Draw(const GameTextures& textures);
         void TailCut(int cut_index);
         void ReadInput();
@@ -32,6 +33,7 @@ class Snake {
         bool UpdateMovement(float delta_time);
         void FixedUpdateAnimation(float delta_time);
         void SetMovementInterval(float interval);
+        GridPosition GetHeadPosition() const;
     private:
         int fps = 60;
 
