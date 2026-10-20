@@ -7,6 +7,7 @@
 #include "include/room_template.h"
 #include "include/room.h"
 #include "include/game_textures.h"
+#include "include/enemy.h"
 
 class game {
     private:
@@ -21,6 +22,7 @@ class game {
         Food spawn_food;
         RoomTemplate room_template;
         Room room;
+        std::vector<std::unique_ptr<Enemy>> enemies;
         
         int combo_counter = 0;
         int combo_score_step_count = 5;
@@ -32,6 +34,7 @@ class game {
 
         game(const RoomCatalog& catalog);
         bool InitGameObject();
+        void InitRoomObject();
         bool Transition(DoorSide side);
         void Draw(const GameTextures& textures);
         void ReadInput();
@@ -42,4 +45,5 @@ class game {
         void HandleFoodCollision();
         void UpdateComboCounter(int food_score, int food_max_score);
         float GetFoodScoreWithCombo(int food_score);
+        void CleanupDeadEnemies();
 };

@@ -30,7 +30,6 @@ void Snake::Reset(Room& room) {
         queued_direction = dir_up;
         spawn_pos.y -= 1;
     }
-    TraceLog(LOG_ERROR, "snake spawn direction: %d", door_side);
     has_queued_direction = false;
     movement_elapsed = 0.0f;
     animation_elapsed = 0.0f;
@@ -77,8 +76,10 @@ void Snake::EnterRoom(Room& room) {
 
     unfold_steps = 0;
     
-    for (int i=0; i< init_length; i++) {
-        body.push_back(snake_body{spawn_pos, snake_move, snake_move, false});
+    for (auto& node : body) {
+        node.position = spawn_pos;
+        node.cur_dir = snake_move;
+        node.is_turn = false;
     }
 }
 

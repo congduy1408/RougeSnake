@@ -15,6 +15,7 @@ class Room {
         GridPosition GetEntrance() const;
         DoorSide GetDoorSide(GridPosition door_pos) const;
         const std::vector<GridPosition>& GetExit() const;
+        const std::vector<ObjectMarker>& GetObjectMarkers() const;
     private:
         int width = 0;
         int height = 0;

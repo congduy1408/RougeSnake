@@ -5,6 +5,8 @@
 #include <utility>
 #include <iostream>
 #include <string>
+#include <memory>
+#include <algorithm>
 
 
 const Color darkGreen = {20, 160, 133, 255};

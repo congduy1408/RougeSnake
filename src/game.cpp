@@ -27,7 +27,24 @@ bool game::InitGameObject() {
     spawn_food.SetFoodPosition(spawn_snake, board);
     last_get_time = GetTime();
     TraceLog(LOG_INFO, "Initialization completed");
+
+    InitRoomObject();
+
     return true;
+}
+
+void game::InitRoomObject() {
+    enemies.clear();
+    for (const auto& marker : room.GetObjectMarkers()) {
+        if (marker.name == "enemy") {
+            TraceLog(LOG_ERROR, "load enemy: %s", marker.name);
+            // Create enemy at marker.position
+            enemies.push_back(std::make_unique<Enemy>(marker.position));
+        }
+        else if (marker.name == "item") {
+            // Create item at marker.position
+        }
+    }
 }
 
 bool game::Transition(DoorSide side) {
@@ -51,11 +68,14 @@ bool game::Transition(DoorSide side) {
     }
     room_template = std::move(temp_template);
     // spawn snake + food
-    TraceLog(LOG_INFO, "Resetting snake...");
-    spawn_snake.Reset(room);
+    TraceLog(LOG_INFO, "Resetting snake..."); 
+    spawn_snake.EnterRoom(room);
 
     TraceLog(LOG_INFO, "Spawning food...");
     spawn_food.SetFoodPosition(spawn_snake, board);
+
+    InitRoomObject();
+
     return true;
 }
 
@@ -88,6 +108,9 @@ void game::Draw(const GameTextures& textures) {
             board.Draw(textures);
             spawn_snake.Draw(textures);
             spawn_food.Draw(textures);
+            for (const auto& enemy : enemies) {
+                enemy->Draw();
+            }
             DrawText(TextFormat("Score: %.1f", state.score), 10,10, 20, darkGreen);
             DrawText(TextFormat("Combo: %d", combo_counter), 10,35, 20, darkGreen);
             DrawText(TextFormat("Multiplier: %.1fx", score_multiplier), 10,60, 20, darkGreen);
@@ -172,7 +195,19 @@ void game::FixUpdate(float interval) {
         combo_counter = 0;
         score_multiplier = 1.0f;
     }
+ 
+    // process enemy
+    // handle attack
+    // apply damage to enemies
+    for(auto& enemy: enemies) {
+        if (enemy->IsAt(spawn_snake.GetHeadPosition()))
+        {
+            enemy->OnSnakeEnter(spawn_snake);
+        }
+    }
 
+    // remove dead enemies
+    CleanupDeadEnemies();
 }
 
 void game::HandleFoodCollision() {
@@ -207,4 +242,17 @@ void game::UpdateComboCounter(int food_score, int food_max_score) {
 
 float game::GetFoodScoreWithCombo(int food_score) {
     return food_score * score_multiplier;
+}
+
+void game::CleanupDeadEnemies() {
+    enemies.erase(
+        std::remove_if(
+            enemies.begin(),
+            enemies.end(),
+            [](const std::unique_ptr<Enemy>& enemy) {
+                return enemy->IsDead();
+            }
+        ),
+        enemies.end()
+    );
 }

@@ -66,6 +66,10 @@ const std::vector<GridPosition>& Room::GetExit() const {
     return exits;
 }
 
+const std::vector<ObjectMarker>& Room::GetObjectMarkers() const {
+    return object_markers;
+}
+
 DoorSide Room::GetDoorSide(GridPosition door_pos) const {
     if (door_pos.x < 0 || door_pos.x >= width ||
         door_pos.y < 0 || door_pos.y >= height) {

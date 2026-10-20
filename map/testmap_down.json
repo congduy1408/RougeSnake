@@ -2314,7 +2314,7 @@
           "y": 9
         },
         {
-          "name": "ground",
+          "name": "gap",
           "x": 15,
           "y": 9
         },
@@ -2464,7 +2464,7 @@
           "y": 10
         },
         {
-          "name": "ground",
+          "name": "gap",
           "x": 7,
           "y": 10
         },
@@ -3324,7 +3324,7 @@
           "y": 14
         },
         {
-          "name": "ground",
+          "name": "gap",
           "x": 27,
           "y": 14
         },
@@ -6042,6 +6042,28 @@
           "name": "gap",
           "x": 38,
           "y": 28
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "name": "Enemies",
+      "visible": true,
+      "cells": [
+        {
+          "name": "enemy",
+          "x": 9,
+          "y": 16
+        },
+        {
+          "name": "enemy",
+          "x": 29,
+          "y": 10
+        },
+        {
+          "name": "enemy",
+          "x": 25,
+          "y": 20
         }
       ]
     }

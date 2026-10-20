@@ -8,6 +8,23 @@ let S={name:"untitled",width:20,height:10,cellSize:24,settings:{bgColor:"#ffffff
 
 const mkLayer=n=>({name:n,visible:true,cells:[]}),snap=()=>clone(S);S.layers=[boundaryLayer()];
 
+// Keep the file association outside map snapshots so edits and undo retain it.
+let fileHandle=null,fileBusy=false;
+const jsonFileTypes=[{description:"Rouge Snake room JSON",accept:{"application/json":[".json"]}}];
+function fileOperation(busy){fileBusy=busy;["new-map-btn","import-btn","export-btn"].forEach(id=>$(id).disabled=busy)}
+
+async function openFile(){
+  if(fileBusy)return;
+  if(typeof window.showOpenFilePicker!=="function"){R.file.click();return}
+  fileOperation(true);
+  try{
+    const [handle]=await window.showOpenFilePicker({types:jsonFileTypes,multiple:false});
+    load(JSON.parse(await (await handle.getFile()).text()));
+    fileHandle=handle;undo=[];redo=[];render();status(`Opened ${handle.name}`);
+  }catch(e){if(e.name!=="AbortError"){status("Open failed");alert(`Cannot open: ${e.message}`)}}
+  finally{fileOperation(false)}
+}
+
 function boundaryLayer(){let L=mkLayer("Layer 0");for(let y=0;y<S.height;y++)for(let x=0;x<S.width;x++)if(x===0||y===0||x===S.width-1||y===S.height-1)L.cells.push({name:"wall",x,y});return L}
 
 function typing(e){return e.target?.isContentEditable||["INPUT","TEXTAREA","SELECT"].includes(e.target?.tagName)}
@@ -64,13 +81,33 @@ function clearName(n){S.layers.forEach(L=>L.cells=L.cells.filter(c=>c.name!==n))
 
 function move(d){let i=S.layer,j=i+d;if(j<0||j>=S.layers.length)return;checkpoint();[S.layers[i],S.layers[j]]=[S.layers[j],S.layers[i]];S.layer=j;render()}
 
-function save(){let v=validate();if(!v.ok){alert("Cannot save:\n- "+v.errors.join("\n- "));return}let out={version:2,name:S.name,size:{width:S.width,height:S.height},settings:clone(S.settings),tiles:clone(S.tiles),layers:S.layers.map((L,index)=>({index,name:L.name,visible:L.visible!==false,cells:clone(L.cells)}))},blob=new Blob([JSON.stringify(out,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=S.name+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);status("Saved")}
+async function save(){
+  if(fileBusy)return;
+  let v=validate();if(!v.ok){alert("Cannot save:\n- "+v.errors.join("\n- "));return}
+  const out={version:2,name:S.name,size:{width:S.width,height:S.height},settings:clone(S.settings),tiles:clone(S.tiles),layers:S.layers.map((L,index)=>({index,name:L.name,visible:L.visible!==false,cells:clone(L.cells)}))};
+  const json=JSON.stringify(out,null,2);
+  fileOperation(true);
+  try{
+    if(fileHandle||typeof window.showSaveFilePicker==="function"){
+      const handle=fileHandle||await window.showSaveFilePicker({suggestedName:S.name+".json",types:jsonFileTypes});
+      const writable=await handle.createWritable();
+      try{await writable.write(json);await writable.close()}
+      catch(e){try{await writable.abort()}catch{}throw e}
+      fileHandle=handle;status(`Saved ${handle.name}`);
+    }else{
+      const blob=new Blob([json],{type:"application/json"}),a=document.createElement("a");
+      const url=URL.createObjectURL(blob);a.href=url;a.download=S.name+".json";a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
+      status("Downloaded JSON copy. Use Chrome or Edge to save directly to an opened file.");
+    }
+  }catch(e){if(e.name!=="AbortError"){status("Save failed; changes remain in the editor");alert(`Cannot save: ${e.message}`)}}
+  finally{fileOperation(false)}
+}
 
 function load(j){if(!j?.name||!j?.size||!Array.isArray(j.layers))throw Error("Not a Rouge Snake room JSON");S.name=j.name;S.width=+j.size.width;S.height=+j.size.height;S.settings={bgColor:j.settings?.bgColor||"#fff",gridColor:j.settings?.gridColor||"#000",showGrid:j.settings?.showGrid!==false};S.tiles=Array.isArray(j.tiles)?j.tiles:S.tiles;S.layers=[...j.layers].sort((a,b)=>(a.index??0)-(b.index??0)).map((L,i)=>({name:L.name||`Layer ${i}`,visible:L.visible!==false,cells:Array.isArray(L.cells)?L.cells:[]}));if(!S.layers.length)S.layers=[mkLayer("Layer 0")];S.layer=0;S.tile=S.tiles[0]?.name||"ground";S.tool="brush"}
 
 function bind(){
 
-$("new-map-btn").onclick=()=>{let name=prompt("Map name",S.name);if(!name)return;let w=+prompt("Width",S.width),h=+prompt("Height",S.height);if(!Number.isInteger(w)||!Number.isInteger(h)||w<3||h<3){alert("Width/height must be integers >= 3");return}checkpoint();S.name=name.trim();S.width=w;S.height=h;S.layers=[boundaryLayer()];S.layer=0;render();status("New map created with boundary walls")};$("import-btn").onclick=()=>R.file.click();R.file.onchange=async()=>{try{load(JSON.parse(await R.file.files[0].text()));undo=[];redo=[];render();status("Opened") }catch(e){alert(e.message)}R.file.value=""};$("export-btn").onclick=save;
+$("new-map-btn").onclick=()=>{if(fileBusy)return;let name=prompt("Map name",S.name);if(!name)return;let w=+prompt("Width",S.width),h=+prompt("Height",S.height);if(!Number.isInteger(w)||!Number.isInteger(h)||w<3||h<3){alert("Width/height must be integers >= 3");return}checkpoint();fileHandle=null;S.name=name.trim();S.width=w;S.height=h;S.layers=[boundaryLayer()];S.layer=0;render();status("New map created with boundary walls")};$("import-btn").onclick=openFile;R.file.onchange=async()=>{if(!R.file.files.length)return;fileOperation(true);try{load(JSON.parse(await R.file.files[0].text()));fileHandle=null;undo=[];redo=[];render();status("Opened. This browser saves a downloaded copy; use Chrome or Edge for direct saving.") }catch(e){alert(e.message)}finally{R.file.value="";fileOperation(false)}};$("export-btn").onclick=save;
 
 $("undo-btn").onclick=()=>{if(!undo.length)return;redo.push(snap());S=undo.pop();render()};$("redo-btn").onclick=()=>{if(!redo.length)return;undo.push(snap());S=redo.pop();render()};
 
