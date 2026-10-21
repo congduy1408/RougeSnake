@@ -157,52 +157,57 @@ void game::FixUpdate(float interval) {
     // update food
     spawn_food.Update();
     // check snake collision with wall
-    if (!snake_moved)
+    if (snake_moved)
     {
-        return;
-    }
-    GridPosition head_pos = spawn_snake.GetHeadPosition();
-    //// move to game over
-    if (!board.IsWalkable(head_pos)) {
-        state.currentScreen = GAMEOVER;
-        return;
-    }
-    if (board.IsLethal(head_pos)) {
-        state.currentScreen = GAMEOVER;
-        return;
-    }
-    // Check snake move to exit door
-    if (board.IsDoor(head_pos)) {
-        // check door side
-        DoorSide exit_side = room.GetDoorSide(head_pos);
-        // call change room function
-        if (exit_side != DoorSide::INVALID) {
-            TraceLog(LOG_INFO, "Snake reached exit door %d", exit_side);
-            
-            // adding transition logic
-            Transition(exit_side);
-            return; // stop process other gameobject for prepare next room
+        GridPosition head_pos = spawn_snake.GetHeadPosition();
+        //// move to game over
+        if (!board.IsWalkable(head_pos)) {
+            state.currentScreen = GAMEOVER;
+            return;
+        }
+        if (board.IsLethal(head_pos)) {
+            state.currentScreen = GAMEOVER;
+            return;
+        }
+        // Check snake move to exit door
+        if (board.IsDoor(head_pos)) {
+            // check door side
+            DoorSide exit_side = room.GetDoorSide(head_pos);
+            // call change room function
+            if (exit_side != DoorSide::INVALID) {
+                TraceLog(LOG_INFO, "Snake reached exit door %d", exit_side);
+                
+                // adding transition logic
+                Transition(exit_side);
+                return; // stop process other gameobject for prepare next room
+            }
+        }
+        // check snake collision with food
+        //// grow snake, get score, update combo, spawn new food
+        //// reset combo if snake move out of food boundary
+        if (spawn_food.IsAt(head_pos)) {
+            HandleFoodCollision();
+        }
+        else if (spawn_food.UpdateBoundaryScore(head_pos))
+        {
+            combo_counter = 0;
+            score_multiplier = 1.0f;
         }
     }
-    // check snake collision with food
-    //// grow snake, get score, update combo, spawn new food
-    //// reset combo if snake move out of food boundary
-    if (spawn_food.IsAt(head_pos)) {
-        HandleFoodCollision();
-    }
-    else if (spawn_food.UpdateBoundaryScore(head_pos))
-    {
-        combo_counter = 0;
-        score_multiplier = 1.0f;
-    }
- 
     // process enemy
-    // handle attack
-    // apply damage to enemies
+
     for(auto& enemy: enemies) {
+        //move enemy
+        bool enemy_moved = enemy->Update(board, interval);
         if (enemy->IsAt(spawn_snake.GetHeadPosition()))
         {
-            enemy->OnSnakeEnter(spawn_snake);
+            // handle attack
+            // apply damage to enemies
+            if ((snake_moved || enemy_moved) &&
+                enemy->IsAt(spawn_snake.GetHeadPosition()))
+            {
+                enemy->OnSnakeEnter(spawn_snake);
+            }
         }
     }
 
