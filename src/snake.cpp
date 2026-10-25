@@ -207,12 +207,20 @@ void Snake::MoveSnake() {
     if (body.empty()) {
         return;
     }
-    snake_body new_head = body.front();
-    body.pop_back();
-    body.insert(body.begin(), new_head);
+    // snake_body new_head = body.front();
+    // body.pop_back();
+    // body.insert(body.begin(), new_head);
+    for (std::size_t i = body.size() - 1; i > 0; --i) {
+        body[i].position = body[i - 1].position;
+        body[i].cur_dir = body[i - 1].cur_dir;
+        body[i].pre_dir = body[i - 1].pre_dir;
+        body[i].is_turn = body[i - 1].is_turn;
+    }
+
+
     body.front().is_turn = false;
-    if (IsUnfolding()) {
-        unfold_steps++; // snake make a valid move, increase unfold_step
+    if (IsUnfolding()|| IsInvicible()) {
+        ++unfold_steps; // snake make a valid move, increase unfold_step
     }
     switch (snake_move) {
         case dir_up:
@@ -235,7 +243,9 @@ void Snake::MoveSnake() {
 
 
 void Snake::Grow() {
-    body.push_back(body.back());
+    snake_body new_node = body.back();
+    new_node.hp = snake_body::initial_hp;
+    body.push_back(new_node);
 }
 
 // snakestate snake::CheckSnakeState(gamestate &gamestate, food &food) {
@@ -298,6 +308,31 @@ void Snake::SetMovementInterval(float interval) {
     {
         movement_interval = interval;
     }
+}
+
+void Snake::DamageNode(GridPosition position, int damage) {
+    if (damage <= 0 || IsDead()) return;
+    if (IsInvicible()) return;
+    
+    // search snake node at position to damage
+    for(std::size_t i = 0; i<body.size(); i++) {
+        if (body[i].position == position) {
+            // check if in ghost phase
+            if (body[i].ghost_time > 0) break;
+            body[i].hp -= damage;
+            body[i].ghost_time = snake_body::initial_ghost_time;
+            TraceLog(LOG_ERROR,"damage snake node %d, remain %d", i, body[i].hp); 
+            // check node HP, if <0 cut the node
+            if (body[i].hp <= 0) {
+                TailCut(i);
+            }
+            break;
+        }
+    }
+}
+
+bool Snake::IsDead() const {
+    return body.empty() || body.front().hp <= 0;
 }
 
 bool Snake::IsUnfolding() {

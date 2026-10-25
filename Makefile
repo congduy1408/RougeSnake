@@ -368,9 +368,10 @@ rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst 
 # Define all source files required
 SRC_DIR = src
 OBJ_DIR = obj
+TEST_DIR = Testapp
 
 # Define all object files from source files
-SRC = $(wildcard $(SRC_DIR)/*.cpp)
+SRC = $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(TEST_DIR)/*.cpp)
 OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRC))
 
 # For Android platform we call a custom Makefile.Android

@@ -31,7 +31,7 @@ bool Enemy::IsDead() const {
 }
 
 void Enemy::OnSnakeEnter(Snake& snake) {
-    TakeDamage(1);
+    // TakeDamage(1);
 }
 
 bool Enemy::Update(const Board& board,float delta_time) {

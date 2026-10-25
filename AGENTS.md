@@ -50,3 +50,20 @@
 - Ask before making major architectural changes.
 - After reviewing a feature, suggest the next logical milestone.
 - Keep a record of deferred bugs and future improvements.
+
+## Project Context
+
+Before discussing or modifying the project:
+1. Read GAME_DESIGN.md to understand the game specification.
+2. Inspect relevant source files before making recommendations.
+3. Follow the architecture and development workflow described in both files.
+4. Never assume GAME_DESIGN.md is more up-to-date than the actual source code.
+5. If the implementation differs from the design document, discuss the difference before changing anything.
+
+## Documentation Maintenance
+
+After completing a development milestone:
+- Summarize what was implemented.
+- Identify any unresolved bugs or deferred improvements.
+- Propose updates to GAME_DESIGN.md.
+- Only modify GAME_DESIGN.md after user approval.

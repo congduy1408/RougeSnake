@@ -3,11 +3,18 @@
 #include "game_textures.h"
 #include "room.h"
 
+
+
+
 struct snake_body {
+    static constexpr int initial_hp = 3;
+    static constexpr float initial_ghost_time = 0.3f;
     GridPosition position;
     direction cur_dir;
     direction pre_dir;
     bool is_turn=false;
+    int hp = initial_hp;
+    float ghost_time = 0; 
 };
 
 class Snake {
@@ -34,6 +41,9 @@ class Snake {
         void FixedUpdateAnimation(float delta_time);
         void SetMovementInterval(float interval);
         GridPosition GetHeadPosition() const;
+        void DamageNode(GridPosition position, int damage);
+        bool IsDead() const;
+        void ReduceGhostTime();
     private:
         int fps = 60;
 
@@ -51,7 +61,6 @@ class Snake {
 
         int unfold_steps = 0;
         int init_length = 3;
-
 
         void DrawSnakePart(const Texture2D& texture, Rectangle draw_sprite, Rectangle draw_pos,direction dir);
         void MoveSnake();

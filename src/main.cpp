@@ -4,6 +4,7 @@
 #include "include/game.h"
 #include "include/game_textures.h"
 #include <algorithm>
+#include "Testapp/test.h"
 
 int main() 
 {
@@ -31,6 +32,7 @@ int main()
             CloseWindow();
             return 1;
         }
+        TestApp test;
         // std::cout << spawn_food.position << std::endl;
         while (!WindowShouldClose())
         {
@@ -39,6 +41,9 @@ int main()
             accumulated_time += frame_time;
             
             game.ReadInput();
+            if (game.state.currentScreen == STAGE) {
+                test.ModifySnakeHp(game.spawn_snake, 2);
+            }
             while (accumulated_time >= fixed_time_step) {
                 game.FixUpdate(static_cast<float>(fixed_time_step));
                 accumulated_time -= fixed_time_step;

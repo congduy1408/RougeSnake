@@ -151,6 +151,10 @@ void game::FixUpdate(float interval) {
     if (state.currentScreen != STAGE) {
         return;
     }
+    if (spawn_snake.IsDead()) {
+        state.currentScreen = GAMEOVER;
+        return;
+    }
     // Update snake movement base on interval
     bool snake_moved = spawn_snake.UpdateMovement(interval);
     spawn_snake.FixedUpdateAnimation(interval);
