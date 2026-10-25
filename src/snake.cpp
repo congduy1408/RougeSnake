@@ -114,8 +114,23 @@ void Snake::DrawSnakePart(const Texture2D& texture,Rectangle draw_sprite, Rectan
 
 void Snake::Draw(const GameTextures& textures) {
 
-    // for (unsigned int i=0; i<body.size(); i++) {
+
+
     for (int i=body.size()-1; i >= 0; i--) {
+        const auto& node = body[i];
+
+        if (node.ghost_time > 0.0f) {
+            constexpr float blink_interval = 0.05f;
+            float elapsed =
+                snake_body::initial_ghost_time - node.ghost_time;
+
+            int blink_phase = static_cast<int>(elapsed / blink_interval);
+
+            if (blink_phase % 2 != 0) {
+                continue;
+            }
+        }
+
         // adding cell/2 due to define origin (cell/2, cell/2), function will re calculate the dest by decrease it position by cell/2, so we adding the cell/2 to offset that
         Rectangle draw_pos = 
         {   
@@ -346,4 +361,13 @@ bool Snake::IsInvicible() {
 
 GridPosition Snake::GetHeadPosition() const {
     return body.front().position;
+}
+
+void Snake::ReduceGhostTime(float delta_time) {
+    for (auto& node : body) {
+        if (node.ghost_time > 0.0f) {
+            node.ghost_time =
+                std::max(0.0f, node.ghost_time - delta_time);
+        }
+    }
 }

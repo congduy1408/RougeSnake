@@ -15,6 +15,17 @@ void Enemy::Draw() const {
     );
     std::string hp_text = std::to_string(hp);
     DrawText(hp_text.c_str(), position.x * cellsize, position.y * cellsize - cellsize, 14, darkGreen);
+    if (attack_flash_remaining > 0.0f) {
+        for (const auto& cell : visible_attack_zone) {
+            DrawRectangle(
+                cell.x * cellsize,
+                cell.y * cellsize,
+                cellsize,
+                cellsize,
+                Fade(YELLOW, 0.5f)
+            );
+        }
+    }
 }
 
 void Enemy::TakeDamage(int damage) {
@@ -34,10 +45,54 @@ void Enemy::OnSnakeEnter(Snake& snake) {
     // TakeDamage(1);
 }
 
-bool Enemy::Update(const Board& board,float delta_time) {
-    movement_elapsed += delta_time;
+EnemyAction Enemy::Update(const Board& board, const Snake& snake, float delta_time) {
+    EnemyAction action;
+    attack_flash_remaining =
+        std::max(0.0f, attack_flash_remaining - delta_time);
+
+    movement_elapsed =
+        std::min(movement_interval, movement_elapsed + delta_time);
+
+    attack_elapsed =
+        std::min(attack_interval, attack_elapsed + delta_time);
+    // Check player enter enemy observe zone
+    bool target_found = false;
+    // direction attack_direction = dir_up;
+    GridPosition target_position;
+    for (const auto& node : snake.body) {
+        int dx = node.position.x - position.x;
+        int dy = node.position.y - position.y;
+
+        if (std::abs(dx) <= observation_radius &&
+                    std::abs(dy) <= observation_radius) {
+            target_position = node.position;
+            target_found = true;
+            // if (dx == 0 && dy == 0) attack_direction = dir_up; // snake ontop of enemy, temp set attack up
+            // if (dx > 0) attack_direction = dir_right;
+            // if (dx < 0) attack_direction = dir_left;
+            // if (dy > 0) attack_direction = dir_up;
+            // if (dy < 0) attack_direction = dir_down;
+            break; // future update: detect multiple snake node
+        }
+    }
+    // if player inside observe zone, attack the player direction
+    if (target_found) {
+        if (attack_elapsed < attack_interval) {
+            return {};
+        }
+        attack_elapsed = 0.0f;
+        action.attack_zone.push_back(target_position);
+        action.damage = 1;
+
+        visible_attack_zone = action.attack_zone;
+        attack_flash_remaining = 0.08f;
+
+        return action;
+    }
+    // if player not inside enemy observe zone move randomly
+    // moving enemy
     if (movement_elapsed < movement_interval) {
-        return false;
+        return {};
     }
     movement_elapsed -= movement_interval;
     // random move direction
@@ -62,7 +117,7 @@ bool Enemy::Update(const Board& board,float delta_time) {
         !board.IsLethal(next_pos))
     {
         position = next_pos;
-        return true;
+        return {};
     }
-    return false;
+    return action;
 }

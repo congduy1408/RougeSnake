@@ -157,6 +157,7 @@ void game::FixUpdate(float interval) {
     }
     // Update snake movement base on interval
     bool snake_moved = spawn_snake.UpdateMovement(interval);
+    spawn_snake.ReduceGhostTime(interval);
     spawn_snake.FixedUpdateAnimation(interval);
     // update food
     spawn_food.Update();
@@ -201,18 +202,20 @@ void game::FixUpdate(float interval) {
     // process enemy
 
     for(auto& enemy: enemies) {
+        EnemyAction action = enemy -> Update(board, spawn_snake, interval);
+
         //move enemy
-        bool enemy_moved = enemy->Update(board, interval);
-        if (enemy->IsAt(spawn_snake.GetHeadPosition()))
-        {
-            // handle attack
-            // apply damage to enemies
-            if ((snake_moved || enemy_moved) &&
-                enemy->IsAt(spawn_snake.GetHeadPosition()))
-            {
-                enemy->OnSnakeEnter(spawn_snake);
-            }
-        }
+        // bool enemy_moved = enemy->Update(board, interval);
+        // if (enemy->IsAt(spawn_snake.GetHeadPosition()))
+        // {
+        //     // handle attack
+        //     // apply damage to enemies
+        //     if ((snake_moved || enemy_moved) &&
+        //         enemy->IsAt(spawn_snake.GetHeadPosition()))
+        //     {
+        //         enemy->OnSnakeEnter(spawn_snake);
+        //     }
+        // }
     }
 
     // remove dead enemies
@@ -265,3 +268,4 @@ void game::CleanupDeadEnemies() {
         enemies.end()
     );
 }
+

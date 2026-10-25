@@ -8,7 +8,7 @@
 
 struct snake_body {
     static constexpr int initial_hp = 3;
-    static constexpr float initial_ghost_time = 0.3f;
+    static constexpr float initial_ghost_time = 1.0f;
     GridPosition position;
     direction cur_dir;
     direction pre_dir;
@@ -43,7 +43,7 @@ class Snake {
         GridPosition GetHeadPosition() const;
         void DamageNode(GridPosition position, int damage);
         bool IsDead() const;
-        void ReduceGhostTime();
+        void ReduceGhostTime(float delta_time);
     private:
         int fps = 60;
 
