@@ -260,6 +260,7 @@ void Snake::MoveSnake() {
 void Snake::Grow() {
     snake_body new_node = body.back();
     new_node.hp = snake_body::initial_hp;
+    new_node.ghost_time = 0.0f;
     body.push_back(new_node);
 }
 
@@ -336,7 +337,9 @@ void Snake::DamageNode(GridPosition position, int damage) {
             if (body[i].ghost_time > 0) break;
             body[i].hp -= damage;
             body[i].ghost_time = snake_body::initial_ghost_time;
-            TraceLog(LOG_ERROR,"damage snake node %d, remain %d", i, body[i].hp); 
+            double current_time = GetTime();
+            TraceLog(LOG_ERROR,"damage snake node %d, remain %d, time: %f", i, body[i].hp, current_time
+            ); 
             // check node HP, if <0 cut the node
             if (body[i].hp <= 0) {
                 TailCut(i);

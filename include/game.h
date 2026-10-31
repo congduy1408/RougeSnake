@@ -13,6 +13,7 @@ class game {
     private:
         const RoomCatalog& room_catalog;
         DoorSide GetOppositeSide(DoorSide side);
+        void ProcessEnemyAttack(const EnemyAction& action);
     public:
         gamestate state;
 

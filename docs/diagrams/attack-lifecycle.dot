@@ -1,0 +1,66 @@
+digraph AttackLifecycle {
+  graph [rankdir=TB, bgcolor="#f8fafc", pad=0.4, nodesep=0.45, ranksep=0.7,
+    fontname="Arial", fontsize=23, labelloc=t,
+    label="ROUGE SNAKE | Proposed enemy attack lifecycle\nDesign discussion • 2026-10-27 • Not a diagram of implemented wind-up code"];
+  node [shape=box, style="rounded,filled", fillcolor=white, color="#cbd5e1",
+    fontname="Arial", fontsize=12, margin="0.18,0.14"];
+  edge [fontname="Arial", fontsize=10, color="#64748b", fontcolor="#475569"];
+
+  subgraph cluster_enemy {
+    label="ENEMY • Owns decisions, attack timing and movement";
+    fontname="Arial"; fontsize=16; color="#cbd5e1"; style=rounded;
+    update [label="Enemy::Update(board, snake, dt)\nAdvance attack state in fixed updates", fillcolor="#dbeafe"];
+    begin [label="BeginAttack(target)\nChoose attack; store target cell / direction\nReset phase timer + effect-released flag", fillcolor="#dbeafe"];
+
+    subgraph phases {
+      ready [label="READY\nObserve and choose behavior\nWander / approach / wait", fillcolor="#dcfce7"];
+      windup [label="WIND-UP\nStep back / raise weapon / draw bow\nAdvance preparation time\nNo damage effect", fillcolor="#fef3c7"];
+      execute [label="EXECUTE\nSwing / lunge / release arrow\nCross release-time threshold\nEmit effect exactly once", fillcolor="#ffedd5"];
+      recovery [label="RECOVERY\nLower weapon / regain balance\nDelay new attack decisions", fillcolor="#ede9fe"];
+    }
+
+    update -> ready [label="when ready"];
+    ready -> windup [label="BeginAttack(target)\nvalid target + available", weight=20];
+    windup -> begin [style=dashed, label="on entry"];
+    windup -> execute [label="preparation complete", weight=8];
+    execute -> recovery [label="execution complete", weight=8];
+    next [label="Recovery complete → return to Ready\nObserve and choose the next action", fillcolor="#dcfce7"];
+    recovery -> next;
+
+    timing [label="UpdateAttack(board, dt)\nProgress phases independently of rendered frames\nRelease when time reaches / crosses effect time\nA flag prevents duplicate effects across updates", fillcolor="#e0f2fe"];
+    targeting [label="TARGETING POLICY • Per attack\nLock at preparation start OR track then lock at release\nStore coordinates / direction, not a Snake-node reference\nFirst prototype suggestion: locked cell, 0.3 s preparation", shape=note, fillcolor="#fefce8"];
+    movement [label="MOVEMENT POLICY • Per attack\nVisual offset: Draw changes sprite position only\nReal step or lunge: Enemy changes grid position\nValidate real movement against Board terrain", shape=note, fillcolor="#f1f5f9"];
+    cooldown [label="RECOVERY ≠ COOLDOWN\nRecovery restricts behavior; cooldown gates availability\nUse recovery alone initially if sufficient\nExact durations / overlap rules remain undecided", shape=note, fillcolor="#f5f3ff"];
+    update -> timing [style=dashed, label="while attack is active"];
+    windup -> targeting [style=dashed, arrowhead=none];
+    windup -> movement [style=dashed, arrowhead=none];
+    recovery -> cooldown [style=dashed, arrowhead=none];
+    execute -> timing [style=dashed, arrowhead=none];
+  }
+
+  subgraph cluster_view {
+    label="PRESENTATION • Reads state; never applies damage";
+    fontname="Arial"; fontsize=16; color="#cbd5e1"; style=rounded;
+    draw [label="Enemy::Draw()\nRead phase + phase time\nSelect animation frame and visual offset\nPrototype: yellow preparation, orange execution", fillcolor="#fef3c7"];
+    examples [label="Same lifecycle, different presentation\nMelee: step back → swing → regain balance\nBite: lean back → plunge → settle\nBow: draw bow → fire → lower bow", shape=note, fillcolor="#f8fafc"];
+    draw -> examples [style=dashed, arrowhead=none];
+  }
+
+  subgraph cluster_effects {
+    label="GAMEPLAY EFFECTS • Game coordinates; Snake owns HP response";
+    fontname="Arial"; fontsize=16; color="#cbd5e1"; style=rounded;
+    build [label="BuildAttackEffect()\nDescribe released gameplay effect", fillcolor="#ffedd5"];
+    melee [label="Damage zone\nExisting EnemyAction:\nattack_zone cells + damage", fillcolor="#ffedd5"];
+    collect [label="Game collects effects from all living enemies\nThen resolves damage zones sequentially\nEnemy vector order", fillcolor="#dbeafe"];
+    snake [label="Snake::DamageNode(cell, damage)\nEntry + per-node protection\nHP reduction + body cutting", fillcolor="#ede9fe"];
+    death [label="Game checks head death after each hit\nGAMEOVER → stop processing", fillcolor="#fee2e2"];
+    projectile [label="FUTURE: projectile-spawn effect\nGame creates arrow; it travels over time\nDamage occurs on collision, not at firing", style="rounded,filled,dashed", fillcolor="#f1f5f9"];
+    build -> melee -> collect -> snake -> death;
+    build -> projectile [style=dashed, label="future result extension"];
+  }
+
+  execute -> build [label="release threshold crossed; once"];
+  timing -> draw [style=dashed, label="state + elapsed time"];
+  scope [label="DESIGN SCOPE\nNo new manager or general animation framework required.\nUse small Enemy helpers first; introduce virtual hooks when a second enemy needs different behavior.\nLatest lifecycle proposal supersedes the earlier two-phase boolean prototype; source and design document are not changed by this diagram.", shape=note, fillcolor="#f1f5f9"];
+  death -> scope [style=invis];
+}

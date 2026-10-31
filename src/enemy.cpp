@@ -15,8 +15,8 @@ void Enemy::Draw() const {
     );
     std::string hp_text = std::to_string(hp);
     DrawText(hp_text.c_str(), position.x * cellsize, position.y * cellsize - cellsize, 14, darkGreen);
-    if (attack_flash_remaining > 0.0f) {
-        for (const auto& cell : visible_attack_zone) {
+    if (attack_phase == AttackPhase::Prepare) {
+        for (const auto& cell : pending_target) {
             DrawRectangle(
                 cell.x * cellsize,
                 cell.y * cellsize,
@@ -25,7 +25,18 @@ void Enemy::Draw() const {
                 Fade(YELLOW, 0.5f)
             );
         }
+    } else if (attack_phase == AttackPhase::Attack) {
+        for (const auto& cell : visible_attack_zone) {
+            DrawRectangle(
+                cell.x * cellsize,
+                cell.y * cellsize,
+                cellsize,
+                cellsize,
+                Fade(RED, 0.5f)
+            );
+        }
     }
+
 }
 
 void Enemy::TakeDamage(int damage) {
@@ -45,16 +56,62 @@ void Enemy::OnSnakeEnter(Snake& snake) {
     // TakeDamage(1);
 }
 
-EnemyAction Enemy::Update(const Board& board, const Snake& snake, float delta_time) {
-    EnemyAction action;
-    attack_flash_remaining =
-        std::max(0.0f, attack_flash_remaining - delta_time);
+void Enemy::ChangeAttackPhase(AttackPhase next) {
+    attack_phase = next;
+    phase_elapsed = 0.0f;
+}
 
+EnemyAction Enemy::Update(const Board& board, const Snake& snake, float delta_time) {
+    if (IsDead()) {
+        return {};
+    }
+
+    if (attack_phase != AttackPhase::Ready) {
+        return UpdateAttack(delta_time);
+    }
+
+    return UpdateBehavior(board, snake, delta_time);
+}
+
+EnemyAction Enemy::UpdateAttack(float delta_time) {
+    phase_elapsed += delta_time;
+
+    switch (attack_phase) {
+        case AttackPhase::Prepare: {
+            if (phase_elapsed < prepare_duration) {
+                return {};
+            }
+
+            EnemyAction action;
+            action.attack_zone = pending_target;
+            action.damage = 1;
+            visible_attack_zone = action.attack_zone;
+            ChangeAttackPhase(AttackPhase::Attack);
+            return action;
+        }
+        case AttackPhase::Attack:
+            if (phase_elapsed >= attack_duration) {
+                visible_attack_zone.clear();
+                pending_target.clear();
+                ChangeAttackPhase(AttackPhase::End);
+            }
+            return {};
+        case AttackPhase::End:
+            if (phase_elapsed >= recovery_duration) {
+                ChangeAttackPhase(AttackPhase::Ready);
+            }
+            return {};
+        case AttackPhase::Ready:
+            return {};
+    }
+
+    return {};
+}
+
+EnemyAction Enemy::UpdateBehavior(const Board& board, const Snake& snake, float delta_time) {
     movement_elapsed =
         std::min(movement_interval, movement_elapsed + delta_time);
 
-    attack_elapsed =
-        std::min(attack_interval, attack_elapsed + delta_time);
     // Check player enter enemy observe zone
     bool target_found = false;
     // direction attack_direction = dir_up;
@@ -62,7 +119,9 @@ EnemyAction Enemy::Update(const Board& board, const Snake& snake, float delta_ti
     for (const auto& node : snake.body) {
         int dx = node.position.x - position.x;
         int dy = node.position.y - position.y;
-
+        if (dx==0 && dy==0) {
+            continue;
+        }
         if (std::abs(dx) <= observation_radius &&
                     std::abs(dy) <= observation_radius) {
             target_position = node.position;
@@ -77,17 +136,10 @@ EnemyAction Enemy::Update(const Board& board, const Snake& snake, float delta_ti
     }
     // if player inside observe zone, attack the player direction
     if (target_found) {
-        if (attack_elapsed < attack_interval) {
-            return {};
-        }
-        attack_elapsed = 0.0f;
-        action.attack_zone.push_back(target_position);
-        action.damage = 1;
-
-        visible_attack_zone = action.attack_zone;
-        attack_flash_remaining = 0.08f;
-
-        return action;
+        pending_target.clear();
+        pending_target.push_back(target_position);
+        ChangeAttackPhase(AttackPhase::Prepare);
+        return {};
     }
     // if player not inside enemy observe zone move randomly
     // moving enemy
@@ -119,5 +171,5 @@ EnemyAction Enemy::Update(const Board& board, const Snake& snake, float delta_ti
         position = next_pos;
         return {};
     }
-    return action;
+    return {};
 }

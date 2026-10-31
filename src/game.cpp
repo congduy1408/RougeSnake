@@ -200,26 +200,38 @@ void game::FixUpdate(float interval) {
         }
     }
     // process enemy
-
+    // collect enemy attack
+    std::vector<EnemyAction> actions_list;
     for(auto& enemy: enemies) {
+        if (enemy->IsDead()) continue;
         EnemyAction action = enemy -> Update(board, spawn_snake, interval);
-
-        //move enemy
-        // bool enemy_moved = enemy->Update(board, interval);
-        // if (enemy->IsAt(spawn_snake.GetHeadPosition()))
-        // {
-        //     // handle attack
-        //     // apply damage to enemies
-        //     if ((snake_moved || enemy_moved) &&
-        //         enemy->IsAt(spawn_snake.GetHeadPosition()))
-        //     {
-        //         enemy->OnSnakeEnter(spawn_snake);
-        //     }
-        // }
+        if (!action.attack_zone.empty()) {
+            actions_list.push_back(action);
+        }
+    }
+    // process enemy attack
+    for (const auto& action : actions_list) {
+        ProcessEnemyAttack(action);
+        if (state.currentScreen == GAMEOVER) {
+            return;
+        }
     }
 
     // remove dead enemies
     CleanupDeadEnemies();
+}
+
+void game::ProcessEnemyAttack(const EnemyAction& action) {
+    if (state.currentScreen != STAGE) return;
+
+    for (const auto& cell : action.attack_zone) {
+        spawn_snake.DamageNode(cell, action.damage);
+
+        if (spawn_snake.IsDead()) {
+            state.currentScreen = GAMEOVER;
+            return;
+        }
+    }
 }
 
 void game::HandleFoodCollision() {

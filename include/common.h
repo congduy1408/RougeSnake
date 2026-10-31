@@ -33,6 +33,8 @@ enum class DoorSide {
     INVALID
 };
 
+enum class AttackPhase { Ready, Prepare, Attack, End };
+
 struct GridPosition
 {
     int x = 0;

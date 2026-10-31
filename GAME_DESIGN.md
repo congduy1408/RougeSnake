@@ -27,8 +27,11 @@ Development follows the design-first workflow above; implementation status and a
 - Observation and behavior selection initially belong in one AI function. Read the Snake's actual positions and available movement information; separate helpers or prediction can be introduced when a specific enemy needs them. Do not assume player attack or dodge actions exist.
 - Complex enemies may prepare, release, and recover from attacks across multiple updates. Their targeting and preparation rules belong to the enemy's behavior.
 - The update result describes an attack released during that update: whether an attack occurred, affected grid cells, and damage. A waiting or moving enemy can return no attack. A movement flag or destination is unnecessary for Game under the agreed no-contact-damage rule.
-- Attack cells describe the released attack in board coordinates. Targeting uses the enemy's position at release; Game resolves those cells without asking the enemy to choose a target again.
-- Start with a simple aimed melee attack against an adjacent Snake node. Exact cooldown, damage, and target-selection details remain to be agreed during implementation. Larger zones, projectiles, and more complex behavior are future milestones.
+- Attack cells describe the released attack in board coordinates. The current enemy locks its target cells when preparation begins; Game resolves those cells without asking the enemy to choose a target again at release.
+- The current simple enemy scans Snake nodes from head to tail and targets the first node inside a centered 3x3 square (`observation_radius = 1`). This includes diagonal cells; same-cell overlap behavior is deferred.
+- The current attack deals 1 damage to the selected cell on entry to Attack. Timings are 0.5 seconds Prepare, 0.08 seconds Attack, and 1.0 second End (recovery). There is no additional cooldown timer.
+- Ready enemies observe and begin preparation immediately when a target is available; otherwise they move randomly with terrain checks. Enemies do not move or retarget during Prepare, Attack, or End.
+- Prepare displays the locked cells in yellow at 50% opacity; Attack displays the released cells in red at 50% opacity. Drawing reads the attack phase, not a separate flash countdown, and never repeatedly applies damage while the zone is visible.
 
 ## Attack collection and sequential damage resolution
 
@@ -52,14 +55,36 @@ Development follows the design-first workflow above; implementation status and a
 - Store remaining protection as elapsed-time-based state per node, rather than counting rendered frames. Decrease timers once per gameplay fixed update, independently of movement and before resolving new attacks.
 - Like HP, the timer belongs to its node and must not be copied along the body with position or drawing information during movement.
 - Apply cutting or head death immediately on lethal damage; protection does not rescue a destroyed node. Terrain hazards bypass both forms of attack protection.
-- Per-node protection is agreed but not implemented. A duration of 0.3 seconds was proposed as a starting point; the final duration and timer behavior on growth and room entry remain to be confirmed.
+- Per-node protection and blinking are implemented. The current duration is 1.0 second. Movement preserves each node's timer and Game decreases timers each gameplay fixed update. Room entry currently preserves timers; growth currently copies the tail's timer and still needs the fresh-node reset described in the deferred items below.
+
+## Attack lifecycle and update structure
+
+- Attack phases are `Ready -> Prepare -> Attack -> End -> Ready`. Preparation, attack display, and recovery run sequentially using one `phase_elapsed` timer, reset by `ChangeAttackPhase()` at every transition.
+- `Enemy::Update()` rejects dead enemies, then dispatches to `UpdateBehavior()` while Ready or `UpdateAttack()` during an active attack sequence.
+- `UpdateBehavior()` observes the Snake, locks target cells and begins Prepare, or performs terrain-checked random movement. Its separate movement timer advances only while Ready, preserving movement readiness while an attack sequence is active.
+- `UpdateAttack()` advances the shared phase timer. Prepare returns no action for 0.5 seconds, then emits exactly one `EnemyAction` while entering Attack. Attack lasts 0.08 seconds without emitting further damage. End lasts 1.0 second, then returns to Ready; the next decision occurs on the next fixed update.
+- Each transition resets elapsed phase time rather than carrying excess time into the next phase. Durations are therefore quantized to fixed-update steps and are tuning values.
+- The target warning remains fixed even if the original node moves away. At release the attack may miss or hit another node occupying the cell. No Snake-node reference or index is retained.
+- Target data is retained through Prepare and Attack and cleared when entering End. Enemy recreation on room transition or restart clears pending attacks naturally.
+- Visual style remains simple and retro: enemy sprites, colored warning/strike areas, and optional weapon overlays or projectile sprites. Multi-frame attack animation assets are deferred. A future visual effect can use phase and phase time without controlling the gameplay update.
+- Game's collection and sequential resolution flow is unchanged. Future projectile support will require a spawn effect and subsequent collision handling; firing a projectile must not immediately damage its destination cell.
 
 ## Current implementation and next milestone
 
-- Node HP, HP-preserving movement, fresh-node HP on growth, body cutting, and `Snake::IsDead()` are implemented. Body cutting has been manually tested by the user.
-- Game checks Snake death before movement. `DamageNode()` rejects nonpositive damage and damage to a dead Snake.
+- Basic Phase 4C enemy attacks are implemented: target detection, locked warning cells, delayed attack release, timed Attack and End phases, returned attack cells, collection and sequential resolution through `ProcessEnemyAttack()`, and immediate head-death handling.
+- Node HP, HP-preserving movement, fresh-node HP on growth, body cutting, `Snake::IsDead()`, per-node damage protection, and blinking are implemented.
+- Game checks Snake death before movement and after each attack-cell resolution. `DamageNode()` rejects nonpositive damage and damage to a dead Snake.
 - Entry protection has been corrected in source: the counter advances while unfolding or protection remains active, and damage no longer waits for full unfolding. This has been source-reviewed; runtime verification for lengths one, two, three, and a longer Snake remains to be recorded.
-- Enemy attacks, read-only Snake input to enemy AI, the attack result, collection/resolution passes, and per-node damage protection remain pending in Phase 4C.
-- Implementation differs from the agreed no-contact-damage rule: Game still calls `Enemy::OnSnakeEnter()`, which damages the enemy on head overlap after movement. Remove that interaction when implementing the agreed attack flow; keep enemy HP support for future explicit player attacks.
-- Next milestone: implement and verify per-node damage protection, then connect the first aimed melee enemy attack and immediate death checks during attack resolution.
-- Deferred improvements: simultaneous damage aggregation, prediction helpers, complex attack states, projectiles, and larger attack patterns. No new managers or external dependencies are planned.
+- Contact damage is disabled in both directions: Game no longer invokes the old overlap damage interaction, and Enemy's `OnSnakeEnter()` is currently a no-op. Enemy HP support remains for future explicit player attacks.
+- User verification: body cutting and yellow targeting indicator work; a clean rebuild picked up the 1.0-second enemy cooldown; multiple-enemy hits respect node protection; lethal head damage ends the run immediately.
+- Shared-timer refactor verification: C++14 compile checks passed. A temporary executable using the production code passed checks for preparation delay, locked targets, one-shot damage release, recovery, retargeting on a later attack, stationary attack phases, and the dead-enemy guard. This does not substitute for visual playtesting.
+- Random movement is restored in the current source. Visual playtesting remains for the full yellow-warning/red-strike sequence, movement resumption, and room transitions during preparation.
+- Next milestone: finish visual verification of the attack lifecycle, then agree on and test same-cell Snake/enemy overlap targeting. More attack patterns can follow after that rule is settled.
+
+## Deferred fixes and future improvements
+
+- Build: Makefile does not track header dependencies, so changing values in headers may leave stale object files. A clean or forced rebuild is currently needed; add automatic header dependency tracking later.
+- Growth: explicitly reset a new node's `ghost_time` to zero rather than inheriting the copied tail timer.
+- Define same-cell Snake/enemy overlap targeting before adding special handling.
+- Cleanup: remove unused enemy `ghost_phase` and obsolete contact hooks if no longer needed. Enemy's parameterized `Update()` is not an override of `GameObject::Update()`; revisit the base interface if polymorphic updates become necessary.
+- Future features: simultaneous damage aggregation, prediction helpers, more complex attack states, projectiles, and larger attack patterns. No new managers or external dependencies are planned.

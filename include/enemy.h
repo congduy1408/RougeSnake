@@ -24,12 +24,20 @@ class Enemy: public GameObject {
         float movement_interval = 0.10f;
         float movement_elapsed = 0.0f;
 
-        float attack_interval = 0.1f;
-        float attack_elapsed = 0.0f;
-
         float ghost_phase = 0.3f;
 
         int observation_radius = 1;
         std::vector<GridPosition> visible_attack_zone;
-        float attack_flash_remaining = 0.0f;
+
+        AttackPhase attack_phase = AttackPhase::Ready;
+        float phase_elapsed = 0.0f;
+        float prepare_duration = 0.5f;
+        float attack_duration = 0.08f;
+        float recovery_duration = 1.0f;
+        // GridPosition pending_target;
+        std::vector<GridPosition> pending_target;
+
+        void ChangeAttackPhase(AttackPhase next);
+        EnemyAction UpdateAttack(float delta_time);
+        EnemyAction UpdateBehavior(const Board& board, const Snake& snake, float delta_time);
 };
