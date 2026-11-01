@@ -9,6 +9,7 @@ bool game::InitGameObject() {
     state.currentScreen = MAIN_MENU;
     combo_counter = 0;
     score_multiplier = 1;
+    detached_soldiers.clear();
 
     if (!room_template.LoadFromFile("map/testmap_down.json")) {
         TraceLog(LOG_ERROR, "Failed to load room template");
@@ -106,6 +107,7 @@ void game::Draw(const GameTextures& textures) {
         } break;
         case STAGE: {
             board.Draw(textures);
+            DrawDetachedSoldiers(textures);
             spawn_snake.Draw(textures);
             spawn_food.Draw(textures);
             for (const auto& enemy : enemies) {
@@ -124,6 +126,42 @@ void game::Draw(const GameTextures& textures) {
             break;
     }
 }
+
+void game::DrawDetachedSoldiers(const GameTextures& textures) const {
+    Rectangle sprite = textures.GetSpriteRect(SpriteID::SNAKE_BODY);
+
+    for (const auto& soldier : detached_soldiers) {
+        if (soldier.ghost_time > 0.0f) {
+            float elapsed = Soldier::initial_ghost_time - soldier.ghost_time;
+            if (static_cast<int>(elapsed / 0.05f) % 2 != 0) continue;
+        }
+        Rectangle destination = {
+            soldier.position.x * cellsize + cellsize / 2.0f,
+            soldier.position.y * cellsize + cellsize / 2.0f,
+            static_cast<float>(cellsize),
+            static_cast<float>(cellsize)
+        };
+
+        float rotation = 0.0f;
+        switch (soldier.cur_dir) {
+            case dir_right: rotation = 0.0f; break;
+            case dir_down:  rotation = 90.0f; break;
+            case dir_left:  rotation = 180.0f; break;
+            case dir_up:    rotation = -90.0f; break;
+        }
+
+        const Color tint = soldier.hp >= 3 ? WHITE : (soldier.hp == 2 ? BLUE : RED);
+        DrawTexturePro(
+            textures.GetTexture(),
+            sprite,
+            destination,
+            {cellsize / 2.0f, cellsize / 2.0f},
+            rotation,
+            tint
+        );
+    }
+}
+
 void game::ReadInput() {
     switch (state.currentScreen) {
         case MAIN_MENU: {
@@ -158,6 +196,7 @@ void game::FixUpdate(float interval) {
     // Update snake movement base on interval
     bool snake_moved = spawn_snake.UpdateMovement(interval);
     spawn_snake.ReduceGhostTime(interval);
+    ReduceDetachedGhostTime(interval);
     spawn_snake.FixedUpdateAnimation(interval);
     // update food
     spawn_food.Update();
@@ -187,6 +226,8 @@ void game::FixUpdate(float interval) {
                 return; // stop process other gameobject for prepare next room
             }
         }
+        HandleSoldierRescue();
+
         // check snake collision with food
         //// grow snake, get score, update combo, spawn new food
         //// reset combo if snake move out of food boundary
@@ -204,7 +245,7 @@ void game::FixUpdate(float interval) {
     std::vector<EnemyAction> actions_list;
     for(auto& enemy: enemies) {
         if (enemy->IsDead()) continue;
-        EnemyAction action = enemy -> Update(board, spawn_snake, interval);
+        EnemyAction action = enemy->Update(board, spawn_snake, detached_soldiers, interval);
         if (!action.attack_zone.empty()) {
             actions_list.push_back(action);
         }
@@ -225,10 +266,54 @@ void game::ProcessEnemyAttack(const EnemyAction& action) {
     if (state.currentScreen != STAGE) return;
 
     for (const auto& cell : action.attack_zone) {
-        spawn_snake.DamageNode(cell, action.damage);
+        const bool attached_at_cell = std::any_of(
+            spawn_snake.body.begin(), spawn_snake.body.end(),
+            [&](const Soldier& soldier) { return soldier.position == cell; });
+        if (attached_at_cell) {
+            std::vector<Soldier> detached = spawn_snake.DamageNode(cell, action.damage);
+            detached_soldiers.insert(detached_soldiers.end(), detached.begin(), detached.end());
+        } else {
+            DamageDetachedSoldier(cell, action.damage);
+        }
 
         if (spawn_snake.IsDead()) {
             state.currentScreen = GAMEOVER;
+            return;
+        }
+    }
+}
+
+void game::DamageDetachedSoldier(GridPosition position, int damage) {
+    if (damage <= 0) return;
+
+    for (auto it = detached_soldiers.begin(); it != detached_soldiers.end(); ++it) {
+        if (it->hp <= 0 || !(it->position == position)) continue;
+        if (it->ghost_time > 0.0f) return;
+
+        it->hp -= damage;
+        if (it->hp <= 0) {
+            detached_soldiers.erase(it);
+        } else {
+            it->ghost_time = Soldier::initial_ghost_time;
+        }
+        return; // One victim per cell, including when that victim dies.
+    }
+}
+
+void game::ReduceDetachedGhostTime(float delta_time) {
+    for (auto& soldier : detached_soldiers) {
+        soldier.ghost_time = std::max(0.0f, soldier.ghost_time - delta_time);
+    }
+}
+
+void game::HandleSoldierRescue() {
+    const GridPosition head_pos = spawn_snake.GetHeadPosition();
+    for (auto it = detached_soldiers.begin(); it != detached_soldiers.end(); ++it) {
+        if (it->hp > 0 && it->position == head_pos) {
+            if (spawn_snake.AttachSoldier(*it)) {
+                detached_soldiers.erase(it);
+            }
+            // Rescue at most one soldier per leader movement step.
             return;
         }
     }
@@ -280,4 +365,6 @@ void game::CleanupDeadEnemies() {
         enemies.end()
     );
 }
+
+
 

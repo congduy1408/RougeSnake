@@ -42,7 +42,7 @@ int main()
             
             game.ReadInput();
             if (game.state.currentScreen == STAGE) {
-                test.ModifySnakeHp(game.spawn_snake, 2);
+                test.ModifySnakeHp(game.spawn_snake, 2, game.detached_soldiers);
             }
             while (accumulated_time >= fixed_time_step) {
                 game.FixUpdate(static_cast<float>(fixed_time_step));

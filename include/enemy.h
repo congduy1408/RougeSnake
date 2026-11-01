@@ -19,7 +19,8 @@ class Enemy: public GameObject {
         void TakeDamage(int damage);
         bool IsDead() const;
         void OnSnakeEnter(Snake& snake) override;
-        virtual EnemyAction Update(const Board& board, const Snake& snake, float delta_time);
+        virtual EnemyAction Update(const Board& board, const Snake& snake,
+                                   const std::vector<Soldier>& detached_soldiers, float delta_time);
     private:
         float movement_interval = 0.10f;
         float movement_elapsed = 0.0f;
@@ -39,5 +40,6 @@ class Enemy: public GameObject {
 
         void ChangeAttackPhase(AttackPhase next);
         EnemyAction UpdateAttack(float delta_time);
-        EnemyAction UpdateBehavior(const Board& board, const Snake& snake, float delta_time);
+        EnemyAction UpdateBehavior(const Board& board, const Snake& snake,
+                                   const std::vector<Soldier>& detached_soldiers, float delta_time);
 };

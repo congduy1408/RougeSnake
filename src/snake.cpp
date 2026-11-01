@@ -42,7 +42,7 @@ void Snake::Reset(Room& room) {
     unfold_steps = 0;
     
     for (int i=0; i< init_length; i++) {
-        body.push_back(snake_body{spawn_pos, snake_move, snake_move, false});
+        body.push_back(Soldier{spawn_pos, snake_move, snake_move, false});
     }
 }
 
@@ -83,7 +83,7 @@ void Snake::EnterRoom(Room& room) {
     }
 }
 
-void Snake::DrawSnakePart(const Texture2D& texture,Rectangle draw_sprite, Rectangle draw_pos,direction dir) {
+void Snake::DrawSnakePart(const Texture2D& texture,Rectangle draw_sprite, Rectangle draw_pos,direction dir, Color tint) {
     Vector2 origin = {draw_pos.width/2, draw_pos.height/2};
     float rotation = 0;
     switch(dir) {
@@ -108,7 +108,7 @@ void Snake::DrawSnakePart(const Texture2D& texture,Rectangle draw_sprite, Rectan
         draw_pos,
         origin,
         rotation,
-        WHITE
+        tint
     );
 }
 
@@ -122,7 +122,7 @@ void Snake::Draw(const GameTextures& textures) {
         if (node.ghost_time > 0.0f) {
             constexpr float blink_interval = 0.05f;
             float elapsed =
-                snake_body::initial_ghost_time - node.ghost_time;
+                Soldier::initial_ghost_time - node.ghost_time;
 
             int blink_phase = static_cast<int>(elapsed / blink_interval);
 
@@ -130,6 +130,8 @@ void Snake::Draw(const GameTextures& textures) {
                 continue;
             }
         }
+
+        const Color tint = node.hp >= 3 ? WHITE : (node.hp == 2 ? BLUE : RED);
 
         // adding cell/2 due to define origin (cell/2, cell/2), function will re calculate the dest by decrease it position by cell/2, so we adding the cell/2 to offset that
         Rectangle draw_pos = 
@@ -142,49 +144,52 @@ void Snake::Draw(const GameTextures& textures) {
         if (i==0) {
             Rectangle head_sprite = textures.GetSpriteRect(SpriteID::SNAKE_HEAD);
             head_sprite.height *= flip_frame;
-            DrawSnakePart(textures.GetTexture(), head_sprite, draw_pos, body[i].cur_dir);
+            DrawSnakePart(textures.GetTexture(), head_sprite, draw_pos, body[i].cur_dir, tint);
         }
         // draw tail
         else if (i==body.size()-1) {
             Rectangle tail_sprite = textures.GetSpriteRect(SpriteID::SNAKE_TAIL);
             tail_sprite.height *= flip_frame;
-            DrawSnakePart(textures.GetTexture(),tail_sprite, draw_pos, body[i].cur_dir);
+            DrawSnakePart(textures.GetTexture(),tail_sprite, draw_pos, body[i].cur_dir, tint);
         }
         else if (body[i].is_turn) {
             Rectangle turn_sprite = textures.GetSpriteRect(SpriteID::SNAKE_TURN);
             if ((body[i].pre_dir == dir_right && body[i].cur_dir == dir_down) ||
                 (body[i].pre_dir == dir_up && body[i].cur_dir == dir_left)) {
-                    DrawSnakePart(textures.GetTexture(),turn_sprite, draw_pos, dir_right);
+                    DrawSnakePart(textures.GetTexture(),turn_sprite, draw_pos, dir_right, tint);
             } else if ((body[i].pre_dir == dir_right && body[i].cur_dir == dir_up) ||
                 (body[i].pre_dir == dir_down && body[i].cur_dir == dir_left)) {
-                    DrawSnakePart(textures.GetTexture(),turn_sprite, draw_pos, dir_down);
+                    DrawSnakePart(textures.GetTexture(),turn_sprite, draw_pos, dir_down, tint);
             } else if ((body[i].pre_dir == dir_down && body[i].cur_dir == dir_right) ||
                 (body[i].pre_dir == dir_left && body[i].cur_dir == dir_up)) {
-                    DrawSnakePart(textures.GetTexture(),turn_sprite, draw_pos, dir_left);
+                    DrawSnakePart(textures.GetTexture(),turn_sprite, draw_pos, dir_left, tint);
             } else if ((body[i].pre_dir == dir_left && body[i].cur_dir == dir_down) ||
                 (body[i].pre_dir == dir_up && body[i].cur_dir == dir_right)) {
-                    DrawSnakePart(textures.GetTexture(),turn_sprite, draw_pos, dir_up);
+                    DrawSnakePart(textures.GetTexture(),turn_sprite, draw_pos, dir_up, tint);
                 }
         }
         // draw body
         else {
             Rectangle body_sprite = textures.GetSpriteRect(SpriteID::SNAKE_BODY);
             body_sprite.height *= flip_frame;
-            DrawSnakePart(textures.GetTexture(),body_sprite, draw_pos, body[i].cur_dir);
+            DrawSnakePart(textures.GetTexture(),body_sprite, draw_pos, body[i].cur_dir, tint);
         }
         // draw turn body  
         // std::cout << "body turn[" << i<< "] " << body[i].is_turn << std::endl;
     }   
 }
 
-void Snake::TailCut(int cut_index) {
-    if (cut_index <= 0 ||
-        cut_index >= static_cast<int>(body.size()))
+std::vector<Soldier> Snake::DetachSoldier(int dead_index) {
+    if (dead_index <= 0 ||
+        dead_index >= static_cast<int>(body.size()))
     {
-        return;
+        return {};
     }
 
-    body.resize(static_cast<std::size_t>(cut_index));
+    // Preserve followers before removing the casualty and its rear section.
+    std::vector<Soldier> detached(body.begin() + dead_index + 1, body.end());
+    body.resize(static_cast<std::size_t>(dead_index));
+    return detached;
 }
 
 void Snake::ReadInput() {
@@ -258,10 +263,26 @@ void Snake::MoveSnake() {
 
 
 void Snake::Grow() {
-    snake_body new_node = body.back();
-    new_node.hp = snake_body::initial_hp;
+    Soldier new_node = body.back();
+    new_node.hp = Soldier::initial_hp;
     new_node.ghost_time = 0.0f;
     body.push_back(new_node);
+}
+
+bool Snake::AttachSoldier(const Soldier& soldier) {
+    if (IsDead() || soldier.hp <= 0) {
+        return false;
+    }
+
+    // Preserve the rescued soldier; copy only how it joins the following line.
+    Soldier rescued = soldier;
+    const Soldier& last = body.back();
+    rescued.position = last.position;
+    rescued.cur_dir = last.cur_dir;
+    rescued.pre_dir = last.pre_dir;
+    rescued.is_turn = last.is_turn;
+    body.push_back(rescued);
+    return true;
 }
 
 // snakestate snake::CheckSnakeState(gamestate &gamestate, food &food) {
@@ -279,7 +300,7 @@ void Snake::Grow() {
 //     for (unsigned int i=1; i < body.size(); i++) {
 //         if (body.front().position == body[i].position) {
 //             // std::cout << 'cut index:' << i << std::endl;
-//             TailCut(i);
+//             DetachSoldier(i);
 //             break;
 //         }
 //     }
@@ -326,9 +347,9 @@ void Snake::SetMovementInterval(float interval) {
     }
 }
 
-void Snake::DamageNode(GridPosition position, int damage) {
-    if (damage <= 0 || IsDead()) return;
-    if (IsInvicible()) return;
+std::vector<Soldier> Snake::DamageNode(GridPosition position, int damage) {
+    if (damage <= 0 || IsDead()) return {};
+    if (IsInvicible()) return {};
     
     // search snake node at position to damage
     for(std::size_t i = 0; i<body.size(); i++) {
@@ -336,17 +357,18 @@ void Snake::DamageNode(GridPosition position, int damage) {
             // check if in ghost phase
             if (body[i].ghost_time > 0) break;
             body[i].hp -= damage;
-            body[i].ghost_time = snake_body::initial_ghost_time;
+            body[i].ghost_time = Soldier::initial_ghost_time;
             double current_time = GetTime();
-            TraceLog(LOG_ERROR,"damage snake node %d, remain %d, time: %f", i, body[i].hp, current_time
+            TraceLog(LOG_ERROR,"damage snake node %d, remain %d, time: %f", static_cast<int>(i), body[i].hp, current_time
             ); 
-            // check node HP, if <0 cut the node
-            if (body[i].hp <= 0) {
-                TailCut(i);
+            // Keep the leader on death; only followers can detach.
+            if (body[i].hp <= 0 && i > 0) {
+                return DetachSoldier(static_cast<int>(i));
             }
             break;
         }
     }
+    return {};
 }
 
 bool Snake::IsDead() const {

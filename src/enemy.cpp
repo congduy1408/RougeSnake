@@ -61,7 +61,8 @@ void Enemy::ChangeAttackPhase(AttackPhase next) {
     phase_elapsed = 0.0f;
 }
 
-EnemyAction Enemy::Update(const Board& board, const Snake& snake, float delta_time) {
+EnemyAction Enemy::Update(const Board& board, const Snake& snake,
+                          const std::vector<Soldier>& detached_soldiers, float delta_time) {
     if (IsDead()) {
         return {};
     }
@@ -70,7 +71,7 @@ EnemyAction Enemy::Update(const Board& board, const Snake& snake, float delta_ti
         return UpdateAttack(delta_time);
     }
 
-    return UpdateBehavior(board, snake, delta_time);
+    return UpdateBehavior(board, snake, detached_soldiers, delta_time);
 }
 
 EnemyAction Enemy::UpdateAttack(float delta_time) {
@@ -108,32 +109,28 @@ EnemyAction Enemy::UpdateAttack(float delta_time) {
     return {};
 }
 
-EnemyAction Enemy::UpdateBehavior(const Board& board, const Snake& snake, float delta_time) {
+EnemyAction Enemy::UpdateBehavior(const Board& board, const Snake& snake,
+                                  const std::vector<Soldier>& detached_soldiers, float delta_time) {
     movement_elapsed =
         std::min(movement_interval, movement_elapsed + delta_time);
 
-    // Check player enter enemy observe zone
-    bool target_found = false;
-    // direction attack_direction = dir_up;
+    // Prefer attached soldiers, then inspect detached soldiers in storage order.
     GridPosition target_position;
-    for (const auto& node : snake.body) {
-        int dx = node.position.x - position.x;
-        int dy = node.position.y - position.y;
-        if (dx==0 && dy==0) {
-            continue;
+    const auto find_target = [&](const std::vector<Soldier>& soldiers) {
+        for (const auto& soldier : soldiers) {
+            if (soldier.hp <= 0) continue;
+            int dx = soldier.position.x - position.x;
+            int dy = soldier.position.y - position.y;
+            if (dx == 0 && dy == 0) continue;
+            if (std::abs(dx) <= observation_radius &&
+                std::abs(dy) <= observation_radius) {
+                target_position = soldier.position;
+                return true;
+            }
         }
-        if (std::abs(dx) <= observation_radius &&
-                    std::abs(dy) <= observation_radius) {
-            target_position = node.position;
-            target_found = true;
-            // if (dx == 0 && dy == 0) attack_direction = dir_up; // snake ontop of enemy, temp set attack up
-            // if (dx > 0) attack_direction = dir_right;
-            // if (dx < 0) attack_direction = dir_left;
-            // if (dy > 0) attack_direction = dir_up;
-            // if (dy < 0) attack_direction = dir_down;
-            break; // future update: detect multiple snake node
-        }
-    }
+        return false;
+    };
+    bool target_found = find_target(snake.body) || find_target(detached_soldiers);
     // if player inside observe zone, attack the player direction
     if (target_found) {
         pending_target.clear();

@@ -8,12 +8,17 @@
 #include "include/room.h"
 #include "include/game_textures.h"
 #include "include/enemy.h"
+#include "include/soldier.h"
 
 class game {
     private:
         const RoomCatalog& room_catalog;
         DoorSide GetOppositeSide(DoorSide side);
         void ProcessEnemyAttack(const EnemyAction& action);
+        void DamageDetachedSoldier(GridPosition position, int damage);
+        void ReduceDetachedGhostTime(float delta_time);
+        void DrawDetachedSoldiers(const GameTextures& textures) const;
+        void HandleSoldierRescue();
     public:
         gamestate state;
 
@@ -24,7 +29,8 @@ class game {
         RoomTemplate room_template;
         Room room;
         std::vector<std::unique_ptr<Enemy>> enemies;
-        
+        std::vector<Soldier> detached_soldiers;
+
         int combo_counter = 0;
         int combo_score_step_count = 5;
         float score_multiplier = 1;

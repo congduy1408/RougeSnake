@@ -2,24 +2,12 @@
 #include "common.h"
 #include "game_textures.h"
 #include "room.h"
+#include "soldier.h"
 
-
-
-
-struct snake_body {
-    static constexpr int initial_hp = 3;
-    static constexpr float initial_ghost_time = 1.0f;
-    GridPosition position;
-    direction cur_dir;
-    direction pre_dir;
-    bool is_turn=false;
-    int hp = initial_hp;
-    float ghost_time = 0; 
-};
 
 class Snake {
     public:
-        std::vector<snake_body> body;
+        std::vector<Soldier> body;
         direction snake_move;
 
         Snake();
@@ -31,17 +19,18 @@ class Snake {
         void Reset(Room& room);
         void EnterRoom(Room& room);
         void Draw(const GameTextures& textures);
-        void TailCut(int cut_index);
+        std::vector<Soldier> DetachSoldier(int dead_index);
         void ReadInput();
 
         void Grow();
+        bool AttachSoldier(const Soldier& soldier);
 
         // void Update();
         bool UpdateMovement(float delta_time);
         void FixedUpdateAnimation(float delta_time);
         void SetMovementInterval(float interval);
         GridPosition GetHeadPosition() const;
-        void DamageNode(GridPosition position, int damage);
+        std::vector<Soldier> DamageNode(GridPosition position, int damage);
         bool IsDead() const;
         void ReduceGhostTime(float delta_time);
     private:
@@ -62,7 +51,7 @@ class Snake {
         int unfold_steps = 0;
         int init_length = 3;
 
-        void DrawSnakePart(const Texture2D& texture, Rectangle draw_sprite, Rectangle draw_pos,direction dir);
+        void DrawSnakePart(const Texture2D& texture, Rectangle draw_sprite, Rectangle draw_pos,direction dir, Color tint);
         void MoveSnake();
         
         bool IsUnfolding();
