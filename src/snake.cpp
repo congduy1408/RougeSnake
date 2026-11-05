@@ -41,8 +41,15 @@ void Snake::Reset(Room& room) {
 
     unfold_steps = 0;
     
-    for (int i=0; i< init_length; i++) {
-        body.push_back(Soldier{spawn_pos, snake_move, snake_move, false});
+    const std::size_t starting_length = 1 + std::min(max_followers,
+        static_cast<std::size_t>(init_length - 1));
+    for (std::size_t i = 0; i < starting_length; ++i) {
+        Soldier soldier(SoldierType::Basic);
+        soldier.position = spawn_pos;
+        soldier.cur_dir = snake_move;
+        soldier.pre_dir = snake_move;
+        soldier.has_joined_squad = true;
+        body.push_back(soldier);
     }
 }
 
@@ -77,6 +84,7 @@ void Snake::EnterRoom(Room& room) {
     unfold_steps = 0;
     
     for (auto& node : body) {
+        node.CancelAttack();
         node.position = spawn_pos;
         node.cur_dir = snake_move;
         node.is_turn = false;
@@ -188,6 +196,7 @@ std::vector<Soldier> Snake::DetachSoldier(int dead_index) {
 
     // Preserve followers before removing the casualty and its rear section.
     std::vector<Soldier> detached(body.begin() + dead_index + 1, body.end());
+    for (auto& soldier : detached) soldier.CancelAttack();
     body.resize(static_cast<std::size_t>(dead_index));
     return detached;
 }
@@ -262,20 +271,27 @@ void Snake::MoveSnake() {
 }
 
 
-void Snake::Grow() {
-    Soldier new_node = body.back();
-    new_node.hp = Soldier::initial_hp;
-    new_node.ghost_time = 0.0f;
+void Snake::Grow(SoldierType type) {
+    if (!HasFollowerCapacity()) return;
+    Soldier new_node(type);
+    const Soldier& last = body.back();
+    new_node.position = last.position;
+    new_node.cur_dir = last.cur_dir;
+    new_node.pre_dir = last.pre_dir;
+    new_node.is_turn = last.is_turn;
+    new_node.has_joined_squad = true;
     body.push_back(new_node);
 }
 
 bool Snake::AttachSoldier(const Soldier& soldier) {
-    if (IsDead() || soldier.hp <= 0) {
+    if (!HasFollowerCapacity() || soldier.hp <= 0) {
         return false;
     }
 
     // Preserve the rescued soldier; copy only how it joins the following line.
     Soldier rescued = soldier;
+    rescued.CancelAttack();
+    rescued.has_joined_squad = true;
     const Soldier& last = body.back();
     rescued.position = last.position;
     rescued.cur_dir = last.cur_dir;
@@ -283,6 +299,14 @@ bool Snake::AttachSoldier(const Soldier& soldier) {
     rescued.is_turn = last.is_turn;
     body.push_back(rescued);
     return true;
+}
+
+std::size_t Snake::GetFollowerCount() const {
+    return body.empty() ? 0 : body.size() - 1;
+}
+
+bool Snake::HasFollowerCapacity() const {
+    return !IsDead() && GetFollowerCount() < max_followers;
 }
 
 // snakestate snake::CheckSnakeState(gamestate &gamestate, food &food) {

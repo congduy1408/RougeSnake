@@ -9,6 +9,7 @@ class Snake {
     public:
         std::vector<Soldier> body;
         direction snake_move;
+        std::size_t max_followers = 8;
 
         Snake();
         ~Snake();
@@ -22,8 +23,10 @@ class Snake {
         std::vector<Soldier> DetachSoldier(int dead_index);
         void ReadInput();
 
-        void Grow();
+        void Grow(SoldierType type = SoldierType::Basic);
         bool AttachSoldier(const Soldier& soldier);
+        bool HasFollowerCapacity() const;
+        std::size_t GetFollowerCount() const;
 
         // void Update();
         bool UpdateMovement(float delta_time);

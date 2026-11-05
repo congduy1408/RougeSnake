@@ -1,6 +1,5 @@
 #include "include/common.h"
 #include "include/snake.h"
-#include "include/food.h"
 #include "include/game.h"
 #include "include/game_textures.h"
 #include <algorithm>
@@ -33,7 +32,6 @@ int main()
             return 1;
         }
         TestApp test;
-        // std::cout << spawn_food.position << std::endl;
         while (!WindowShouldClose())
         {
             double frame_time = GetFrameTime();
@@ -43,6 +41,7 @@ int main()
             game.ReadInput();
             if (game.state.currentScreen == STAGE) {
                 test.ModifySnakeHp(game.spawn_snake, 2, game.detached_soldiers);
+                test.RecruitSoldier(game.spawn_snake);
             }
             while (accumulated_time >= fixed_time_step) {
                 game.FixUpdate(static_cast<float>(fixed_time_step));

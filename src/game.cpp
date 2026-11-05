@@ -7,9 +7,9 @@ bool game::InitGameObject() {
     
     state = gamestate();
     state.currentScreen = MAIN_MENU;
-    combo_counter = 0;
-    score_multiplier = 1;
+    recruit_spawn_elapsed = 0.0f;
     detached_soldiers.clear();
+    projectiles.clear();
 
     if (!room_template.LoadFromFile("map/testmap_down.json")) {
         TraceLog(LOG_ERROR, "Failed to load room template");
@@ -22,11 +22,6 @@ bool game::InitGameObject() {
     }
     TraceLog(LOG_INFO, "Resetting snake...");
     spawn_snake.Reset(room);
-    spawn_food.ResetScore();
-
-    TraceLog(LOG_INFO, "Spawning food...");
-    spawn_food.SetFoodPosition(spawn_snake, board);
-    last_get_time = GetTime();
     TraceLog(LOG_INFO, "Initialization completed");
 
     InitRoomObject();
@@ -38,7 +33,7 @@ void game::InitRoomObject() {
     enemies.clear();
     for (const auto& marker : room.GetObjectMarkers()) {
         if (marker.name == "enemy") {
-            TraceLog(LOG_ERROR, "load enemy: %s", marker.name);
+            TraceLog(LOG_INFO, "load enemy: %s", marker.name.c_str());
             // Create enemy at marker.position
             enemies.push_back(std::make_unique<Enemy>(marker.position));
         }
@@ -68,12 +63,12 @@ bool game::Transition(DoorSide side) {
         return false;        
     }
     room_template = std::move(temp_template);
-    // spawn snake + food
+    projectiles.clear();
+    // Unrescued soldiers are left behind when the squad changes rooms.
+    detached_soldiers.clear();
+    // Move the attached squad into the new room.
     TraceLog(LOG_INFO, "Resetting snake..."); 
     spawn_snake.EnterRoom(room);
-
-    TraceLog(LOG_INFO, "Spawning food...");
-    spawn_food.SetFoodPosition(spawn_snake, board);
 
     InitRoomObject();
 
@@ -109,16 +104,17 @@ void game::Draw(const GameTextures& textures) {
             board.Draw(textures);
             DrawDetachedSoldiers(textures);
             spawn_snake.Draw(textures);
-            spawn_food.Draw(textures);
             for (const auto& enemy : enemies) {
                 enemy->Draw();
             }
-            DrawText(TextFormat("Score: %.1f", state.score), 10,10, 20, darkGreen);
-            DrawText(TextFormat("Combo: %d", combo_counter), 10,35, 20, darkGreen);
-            DrawText(TextFormat("Multiplier: %.1fx", score_multiplier), 10,60, 20, darkGreen);
+            DrawSoldierAttacks();
+            for (const auto& projectile : projectiles) projectile.Draw();
+            DrawText(TextFormat("Followers: %d/%d",
+                static_cast<int>(spawn_snake.GetFollowerCount()),
+                static_cast<int>(spawn_snake.max_followers)), 10, 10, 20, darkGreen);
         } break;
         case GAMEOVER: {
-            DrawText(TextFormat("Score: %.1f", state.score), screenWidth/2 ,screenHeight/2, 50, darkGreen);
+            DrawText("Leader defeated", screenWidth/2, screenHeight/2, 30, darkGreen);
             DrawText("Press Enter to restart game", screenWidth/2 + 20,screenHeight/2 + 20, 20, darkGreen);
 
         } break;
@@ -198,8 +194,6 @@ void game::FixUpdate(float interval) {
     spawn_snake.ReduceGhostTime(interval);
     ReduceDetachedGhostTime(interval);
     spawn_snake.FixedUpdateAnimation(interval);
-    // update food
-    spawn_food.Update();
     // check snake collision with wall
     if (snake_moved)
     {
@@ -228,17 +222,6 @@ void game::FixUpdate(float interval) {
         }
         HandleSoldierRescue();
 
-        // check snake collision with food
-        //// grow snake, get score, update combo, spawn new food
-        //// reset combo if snake move out of food boundary
-        if (spawn_food.IsAt(head_pos)) {
-            HandleFoodCollision();
-        }
-        else if (spawn_food.UpdateBoundaryScore(head_pos))
-        {
-            combo_counter = 0;
-            score_multiplier = 1.0f;
-        }
     }
     // process enemy
     // collect enemy attack
@@ -250,6 +233,16 @@ void game::FixUpdate(float interval) {
             actions_list.push_back(action);
         }
     }
+    // Observe after enemy movement; collect both sides before applying damage.
+    std::vector<SoldierAction> soldier_actions;
+    for (std::size_t i = 1; i < spawn_snake.body.size(); ++i) {
+        SoldierAction action = spawn_snake.body[i].UpdateCombat(enemies, true, interval);
+        if (!action.attack_zone.empty() || !action.projectiles.empty()) soldier_actions.push_back(action);
+    }
+    for (auto& soldier : detached_soldiers) {
+        SoldierAction action = soldier.UpdateCombat(enemies, false, interval);
+        if (!action.attack_zone.empty() || !action.projectiles.empty()) soldier_actions.push_back(action);
+    }
     // process enemy attack
     for (const auto& action : actions_list) {
         ProcessEnemyAttack(action);
@@ -258,8 +251,81 @@ void game::FixUpdate(float interval) {
         }
     }
 
+    // Existing arrows move first; new arrows begin traveling next fixed update.
+    UpdateProjectiles(interval);
+    // Released strikes survive an attacker's death, unless the leader's death ended the run.
+    for (const auto& action : soldier_actions) ProcessSoldierAttack(action);
+
     // remove dead enemies
     CleanupDeadEnemies();
+    UpdateRecruitSpawning(interval);
+}
+
+void game::ProcessSoldierAttack(const SoldierAction& action) {
+    if (state.currentScreen != STAGE) return;
+    if (action.damage > 0) {
+        for (const auto& cell : action.attack_zone) DamageEnemyAt(cell, action.damage);
+    }
+    for (const auto& spawn : action.projectiles) {
+        if (spawn.damage <= 0 || spawn.speed <= 0.0f || spawn.max_distance <= 0 ||
+            std::abs(spawn.direction.x) > 1 || std::abs(spawn.direction.y) > 1 ||
+            spawn.direction == GridPosition{} || BlocksProjectile(spawn.position)) continue;
+        projectiles.emplace_back(spawn);
+    }
+}
+
+// Arrow terrain differs from walking: gaps can be crossed, empty/outside cells cannot.
+bool game::BlocksProjectile(GridPosition cell) const {
+    if (!board.IsInside(cell)) return true;
+    CellType type = board.GetCellType(cell);
+    return type == WALL || type == NONE;
+}
+
+// Resolve one enemy hit without erasing during attack processing.
+bool game::DamageEnemyAt(GridPosition cell, int damage) {
+    for (auto& enemy : enemies) {
+        if (!enemy->IsDead() && enemy->GetPosition() == cell) {
+            enemy->TakeDamage(damage);
+            return true;
+        }
+    }
+    return false;
+}
+
+// Check every crossed cell so fast arrows cannot skip obstacles or victims.
+void game::UpdateProjectiles(float delta_time) {
+    for (auto it = projectiles.begin(); it != projectiles.end();) {
+        bool finished = it->remaining_steps <= 0 || BlocksProjectile(it->position);
+        if (!finished && it->has_moved) finished = DamageEnemyAt(it->position, it->damage);
+        it->movement_progress += it->speed * delta_time;
+        while (!finished && it->movement_progress >= 1.0f) {
+            GridPosition next = {it->position.x + it->direction.x,
+                                 it->position.y + it->direction.y};
+            bool blocked_corner = it->direction.x != 0 && it->direction.y != 0 &&
+                (BlocksProjectile({next.x, it->position.y}) ||
+                 BlocksProjectile({it->position.x, next.y}));
+            if (blocked_corner || BlocksProjectile(next)) {
+                finished = true;
+                break;
+            }
+            it->position = next;
+            it->has_moved = true;
+            it->movement_progress -= 1.0f;
+            --it->remaining_steps;
+            finished = DamageEnemyAt(next, it->damage) || it->remaining_steps <= 0;
+        }
+        if (finished) it = projectiles.erase(it);
+        else ++it;
+    }
+}
+
+void game::DrawSoldierAttacks() const {
+    for (std::size_t i = 1; i < spawn_snake.body.size(); ++i) {
+        spawn_snake.body[i].DrawAttack();
+    }
+    for (const auto& soldier : detached_soldiers) {
+        if (soldier.CanAttack(false)) soldier.DrawAttack();
+    }
 }
 
 void game::ProcessEnemyAttack(const EnemyAction& action) {
@@ -319,38 +385,66 @@ void game::HandleSoldierRescue() {
     }
 }
 
-void game::HandleFoodCollision() {
-    int food_score = spawn_food.GetScore();
-    UpdateComboCounter(food_score, spawn_food.max_score);
-    state.score += GetFoodScoreWithCombo(food_score);
-    spawn_snake.Grow();
-    spawn_food.SetFoodPosition(spawn_snake, board);
-}
-
-void game::UpdateComboCounter(int food_score, int food_max_score) {
-    if (food_score != food_max_score) {
-        combo_counter = 0;
-        score_multiplier = 1;
-        return;
-    }
-
-    combo_counter++;
-    if (combo_score_step_count <= 0 || combo_counter % combo_score_step_count != 0) {
-        return;
-    }
-
-    if (score_multiplier < score_multiplier_start) {
-        score_multiplier = score_multiplier_start;
-    } else if (score_multiplier < score_multiplier_max) {
-        score_multiplier += score_multiplier_step;
-        if (score_multiplier > score_multiplier_max) {
-            score_multiplier = score_multiplier_max;
+// Reservoir sampling selects uniformly among valid cells without random retry loops.
+bool game::FindRecruitSpawnCell(GridPosition& cell) const {
+    int candidates = 0;
+    for (int x = 0; x < board.GetWidth(); ++x) {
+        for (int y = 0; y < board.GetHeight(); ++y) {
+            GridPosition candidate = {x, y};
+            if (board.GetCellType(candidate) != GROUND) continue;
+            bool occupied = std::any_of(spawn_snake.body.begin(), spawn_snake.body.end(),
+                [&](const Soldier& soldier) { return soldier.position == candidate; });
+            occupied = occupied || std::any_of(detached_soldiers.begin(), detached_soldiers.end(),
+                [&](const Soldier& soldier) { return soldier.hp > 0 && soldier.position == candidate; });
+            occupied = occupied || std::any_of(enemies.begin(), enemies.end(),
+                [&](const std::unique_ptr<Enemy>& enemy) {
+                    return !enemy->IsDead() && enemy->GetPosition() == candidate;
+                });
+            if (!occupied && GetRandomValue(1, ++candidates) == 1) cell = candidate;
         }
     }
+    return candidates > 0;
 }
 
-float game::GetFoodScoreWithCombo(int food_score) {
-    return food_score * score_multiplier;
+// Extend this terrain multiplier when recruit-friendly terrain is introduced.
+float game::GetRecruitSpawnChance(GridPosition cell) const {
+    float terrain_multiplier = board.GetCellType(cell) == GROUND ? 1.0f : 0.0f;
+    return std::max(0.0f, std::min(1.0f,
+        recruit_spawn.base_chance * terrain_multiplier * recruit_spawn.skill_multiplier));
+}
+
+// One scheduled attempt, independent of pickup/death; blocked attempts never build a backlog.
+void game::UpdateRecruitSpawning(float delta_time) {
+    if (recruit_spawn.interval <= 0.0f) {
+        recruit_spawn_elapsed = 0.0f;
+        return;
+    }
+    recruit_spawn_elapsed += std::max(0.0f, delta_time);
+    if (recruit_spawn_elapsed < recruit_spawn.interval) return;
+    recruit_spawn_elapsed = 0.0f;
+
+    if (!spawn_snake.HasFollowerCapacity()) return;
+    const auto waiting = std::count_if(detached_soldiers.begin(), detached_soldiers.end(),
+        [](const Soldier& soldier) { return soldier.hp > 0; });
+    if (static_cast<std::size_t>(waiting) >= recruit_spawn.max_waiting) return;
+
+    GridPosition cell;
+    if (!FindRecruitSpawnCell(cell)) return;
+    if (GetRandomValue(0, 9999) >= GetRecruitSpawnChance(cell) * 10000.0f) return;
+
+    int total_weight = 0;
+    for (const auto& entry : recruit_spawn.type_weights) total_weight += std::max(0, entry.second);
+    if (total_weight <= 0) return;
+    int roll = GetRandomValue(1, total_weight);
+    for (const auto& entry : recruit_spawn.type_weights) {
+        roll -= std::max(0, entry.second);
+        if (roll <= 0) {
+            Soldier recruit(entry.first);
+            recruit.position = cell;
+            detached_soldiers.push_back(recruit);
+            return;
+        }
+    }
 }
 
 void game::CleanupDeadEnemies() {

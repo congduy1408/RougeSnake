@@ -5,4 +5,5 @@
 class TestApp {
     public:
         void ModifySnakeHp(Snake& snake, int index, std::vector<Soldier>& detached_soldiers);
+        void RecruitSoldier(Snake& snake);
 };
