@@ -44,7 +44,8 @@ struct Soldier {
 
     AttackPhase attack_phase = AttackPhase::Ready;
     float phase_elapsed = 0.0f;
-    GridPosition attack_direction; // Melee: eight-way; ranged: perpendicular to local movement at aim time.
+    GridPosition attack_direction; // Eight-way aim. Arrows lock this direction at release.
+    std::vector<GridPosition> detected_targets; // Ranged targets refreshed in enemy-list order.
     GridPosition strike_cell;
 
     explicit Soldier(SoldierType type = SoldierType::Basic);

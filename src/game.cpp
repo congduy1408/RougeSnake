@@ -1,9 +1,74 @@
 #include "include/game.h"
 
+namespace {
+const Color menu_background = {13, 20, 25, 255};
+const Color menu_panel = {23, 34, 40, 255};
+const Color menu_muted = {158, 178, 181, 255};
+const Color menu_accent = {101, 225, 174, 255};
+
+Rectangle MenuButton() {
+    return {screenWidth / 2.0f - 140, 326, 280, 48};
+}
+
+bool MenuButtonPressed() {
+    return IsKeyPressed(KEY_ENTER) ||
+        (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
+         CheckCollisionPointRec(GetMousePosition(), MenuButton()));
+}
+
+void CenterMenuText(const char* text, int y, int size, Color color) {
+    DrawText(text, (screenWidth - MeasureText(text, size)) / 2, y, size, color);
+}
+
+void DrawMenuScreen(bool defeated, bool restart_failed) {
+    ClearBackground(menu_background);
+    for (int x = 0; x < screenWidth; x += 32)
+        DrawLine(x, 0, x, screenHeight, Fade(menu_muted, 0.05f));
+    for (int y = 0; y < screenHeight; y += 32)
+        DrawLine(0, y, screenWidth, y, Fade(menu_muted, 0.05f));
+
+    DrawRectangle(40, 32, screenWidth - 80, screenHeight - 64, menu_panel);
+    DrawRectangle(40, 32, 4, screenHeight - 64, defeated ? ORANGE : menu_accent);
+    CenterMenuText("ROUGE SNAKE / SQUAD EXPEDITION", 55, 12, menu_muted);
+
+    // The leader and three distinct soldier roles share one following path.
+    const int start_x = screenWidth / 2 - 66;
+    DrawLine(start_x + 10, 113, start_x + 130, 113, menu_muted);
+    const Color roles[] = {menu_accent, SKYBLUE, ORANGE, VIOLET};
+    for (int i = 0; i < 4; ++i) {
+        DrawRectangle(start_x + i * 40, 103, 20, 20, roles[i]);
+        DrawRectangleLines(start_x + i * 40 - 3, 100, 26, 26, Fade(roles[i], 0.4f));
+    }
+
+    CenterMenuText(defeated ? "LEADER DEFEATED" : "LEAD YOUR SQUAD", 151, 30,
+                   defeated ? ORANGE : RAYWHITE);
+    CenterMenuText(defeated ? "The expedition ends. A new squad awaits." :
+                   "Recruit soldiers. Keep moving. Survive together.", 195, 16, menu_muted);
+
+    if (defeated) {
+        CenterMenuText("Start a fresh run with a new squad.", 247, 16, RAYWHITE);
+        CenterMenuText("Your previous squad and room progress will reset.", 276, 14, menu_muted);
+    } else {
+        CenterMenuText("ARROW KEYS   Steer the leader", 238, 16, RAYWHITE);
+        CenterMenuText("Touch waiting soldiers to recruit. Followers attack automatically.", 270, 12, menu_muted);
+        CenterMenuText("Avoid walls and gaps. Protect the leader.", 292, 14, menu_muted);
+    }
+
+    const Rectangle button = MenuButton();
+    const bool hovered = CheckCollisionPointRec(GetMousePosition(), button);
+    DrawRectangleRec(button, hovered ? menu_accent : Fade(menu_accent, 0.85f));
+    CenterMenuText(defeated ? "RETRY EXPEDITION" : "START EXPEDITION", 342, 18, menu_background);
+    CenterMenuText(restart_failed ? "Restart failed. Check room files and try again." :
+                   "ENTER or click to begin   /   ESC to quit", 391, 12,
+                   restart_failed ? ORANGE : menu_muted);
+}
+}
+
 
 game::game(const RoomCatalog& catalog) : room_catalog(catalog) { }
 
 bool game::InitGameObject() {
+    restart_failed = false;
     
     state = gamestate();
     state.currentScreen = MAIN_MENU;
@@ -98,9 +163,13 @@ DoorSide game::GetOppositeSide(DoorSide side) {
 void game::Draw(const GameTextures& textures) {
     switch (state.currentScreen) {
         case MAIN_MENU: {
-            DrawText("Press Enter to start game", screenWidth/2 ,screenHeight/2, 20, darkGreen);
+            DrawMenuScreen(false, false);
         } break;
         case STAGE: {
+            Camera2D room_camera = {};
+            room_camera.offset = {0.0f, static_cast<float>(squad_hud_height)};
+            room_camera.zoom = 1.0f;
+            BeginMode2D(room_camera);
             board.Draw(textures);
             DrawDetachedSoldiers(textures);
             spawn_snake.Draw(textures);
@@ -109,18 +178,50 @@ void game::Draw(const GameTextures& textures) {
             }
             DrawSoldierAttacks();
             for (const auto& projectile : projectiles) projectile.Draw();
-            DrawText(TextFormat("Followers: %d/%d",
-                static_cast<int>(spawn_snake.GetFollowerCount()),
-                static_cast<int>(spawn_snake.max_followers)), 10, 10, 20, darkGreen);
+            EndMode2D();
+            DrawSquadHud();
         } break;
         case GAMEOVER: {
-            DrawText("Leader defeated", screenWidth/2, screenHeight/2, 30, darkGreen);
-            DrawText("Press Enter to restart game", screenWidth/2 + 20,screenHeight/2 + 20, 20, darkGreen);
-
+            DrawMenuScreen(true, restart_failed);
         } break;
         default:
             break;
     }
+}
+
+void game::DrawSquadHud() const {
+    int basic = 0;
+    int veteran = 0;
+    int archer = 0;
+    // The leader is body[0] and is not included in follower capacity or roles.
+    for (std::size_t i = 1; i < spawn_snake.body.size(); ++i) {
+        switch (spawn_snake.body[i].type) {
+            case SoldierType::Basic: ++basic; break;
+            case SoldierType::Veteran: ++veteran; break;
+            case SoldierType::Archer: ++archer; break;
+        }
+    }
+
+    DrawRectangle(0, 0, screenWidth, squad_hud_height, menu_panel);
+    DrawText(TextFormat("SQUAD %d/%d",
+        static_cast<int>(spawn_snake.GetFollowerCount()),
+        static_cast<int>(spawn_snake.max_followers)), 16, 14, 18, menu_accent);
+    DrawText(TextFormat("Basic x%d", basic), 180, 16, 16, SKYBLUE);
+    DrawText(TextFormat("Veteran x%d", veteran), 320, 16, 16, ORANGE);
+    DrawText(TextFormat("Archer x%d", archer), 480, 16, 16, VIOLET);
+
+    DrawText("CIPHER", 16, 50, 14, menu_muted);
+    DrawText("ITEMS", 336, 50, 14, menu_muted);
+    for (int i = 0; i < 5; ++i) {
+        const int x = 84 + i * 22;
+        DrawRectangleLines(x, 46, 18, 22, Fade(menu_muted, 0.35f));
+        DrawText("-", x + 5, 51, 12, menu_muted);
+        DrawRectangleLines(396 + i * 22, 46, 18, 22, Fade(menu_muted, 0.35f));
+    }
+    DrawText("Not available", 202, 53, 10, menu_muted);
+    DrawText("Not available", 514, 53, 10, menu_muted);
+    DrawLine(0, squad_hud_height - 1, screenWidth, squad_hud_height - 1,
+             Fade(menu_accent, 0.45f));
 }
 
 void game::DrawDetachedSoldiers(const GameTextures& textures) const {
@@ -161,7 +262,7 @@ void game::DrawDetachedSoldiers(const GameTextures& textures) const {
 void game::ReadInput() {
     switch (state.currentScreen) {
         case MAIN_MENU: {
-            if (IsKeyPressed(KEY_ENTER))
+            if (MenuButtonPressed())
             {
                 state.currentScreen = STAGE;
             }
@@ -170,10 +271,15 @@ void game::ReadInput() {
             spawn_snake.ReadInput();
         } break;
         case GAMEOVER: {
-            if (IsKeyPressed(KEY_ENTER))
+            if (MenuButtonPressed())
             {
-                InitGameObject();
-                state.currentScreen = STAGE;
+                if (InitGameObject()) {
+                    state.currentScreen = STAGE;
+                } else {
+                    state.currentScreen = GAMEOVER;
+                    restart_failed = true;
+                    TraceLog(LOG_ERROR, "Restart failed: unable to initialize game");
+                }
             }
         } break;
         default: break;

@@ -21,7 +21,7 @@
 #
 #**************************************************************************************************
 
-.PHONY: all clean
+.PHONY: all clean FORCE
 
 # Define required raylib variables
 PROJECT_NAME       ?= RougeSnake
@@ -200,8 +200,13 @@ LDFLAGS +=
 ifeq ($(BUILD_MODE),DEBUG)
     CFLAGS += -g -O0
 else
-    CFLAGS += -Os -ffunction-sections -fdata-sections -s
-    LDFLAGS += -Wl,--gc-sections -s
+    CFLAGS += -Os -ffunction-sections -fdata-sections
+    ifeq ($(PLATFORM_OS),OSX)
+        LDFLAGS += -Wl,-dead_strip
+    else
+        CFLAGS += -s
+        LDFLAGS += -Wl,--gc-sections -s
+    endif
 endif
 
 # Additional flags for compiler (if desired)
@@ -362,17 +367,28 @@ ifeq ($(PLATFORM),PLATFORM_WEB)
     LDLIBS = $(RAYLIB_RELEASE_PATH)/libraylib.bc
 endif
 
+# Use the installed Homebrew raylib on Apple Silicon or Intel Macs.
+ifeq ($(PLATFORM_OS),OSX)
+    HOMEBREW_PREFIX ?= $(shell brew --prefix 2>/dev/null)
+    INCLUDE_PATHS = -I. -I$(HOMEBREW_PREFIX)/include
+    LDFLAGS += -L$(HOMEBREW_PREFIX)/lib
+endif
+
 # Define a recursive wildcard function
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
 # Define all source files required
 SRC_DIR = src
-OBJ_DIR = obj
+OBJ_DIR = obj/$(PLATFORM_OS)/$(BUILD_MODE)
 TEST_DIR = Testapp
 
 # Define all object files from source files
 SRC = $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(TEST_DIR)/*.cpp)
-OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRC))
+OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(SRC))
+DEPS = $(OBJS:.o=.d)
+
+-include $(DEPS)
+.DEFAULT_GOAL := all
 
 # For Android platform we call a custom Makefile.Android
 ifeq ($(PLATFORM),PLATFORM_ANDROID)
@@ -389,7 +405,7 @@ all:
 	$(MAKE) $(MAKEFILE_PARAMS)
 
 # Project target defined by PROJECT_NAME
-$(PROJECT_NAME): $(OBJS)
+$(PROJECT_NAME): $(OBJS) FORCE
 	$(CC) -o $(PROJECT_NAME)$(EXT) $(OBJS) $(CFLAGS) $(INCLUDE_PATHS) $(LDFLAGS) $(WIN_RESOURCES) $(LDLIBS) -D$(PLATFORM)
 
 # Compile source files
@@ -397,8 +413,9 @@ $(PROJECT_NAME): $(OBJS)
 $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
-	$(CC) -c $< -o $@ $(CFLAGS) $(INCLUDE_PATHS) -D$(PLATFORM)
+$(OBJ_DIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CC) -MMD -MP -c $< -o $@ $(CFLAGS) $(INCLUDE_PATHS) -D$(PLATFORM)
 
 # Clean everything
 clean:
@@ -410,8 +427,7 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
 	find -type f -executable | xargs file -i | grep -E 'x-object|x-archive|x-sharedlib|x-executable' | rev | cut -d ':' -f 2- | rev | xargs rm -fv
     endif
     ifeq ($(PLATFORM_OS),OSX)
-		find . -type f -perm +ugo+x -delete
-		rm -f *.o
+		rm -f $(OBJS) $(DEPS) $(PROJECT_NAME)$(EXT)
     endif
 endif
 ifeq ($(PLATFORM),PLATFORM_RPI)

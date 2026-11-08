@@ -15,6 +15,7 @@ extern int cellcount_width;
 extern int cellcount_height;
 extern int screenWidth;
 extern int screenHeight;
+constexpr int squad_hud_height = 80;
 extern float fix_update_time;
 // extern float sprite_update_time;
 

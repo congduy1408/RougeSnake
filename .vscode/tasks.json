@@ -14,7 +14,10 @@
             },
             "problemMatcher": [
                 "$gcc"
-            ]
+            ],
+            "osx": {
+                "command": "make"
+            }
         },
         {
             "label": "Clean RougeSnake",
@@ -26,7 +29,28 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "problemMatcher": []
+            "problemMatcher": [],
+            "osx": {
+                "command": "make"
+            }
+        },
+        {
+            "label": "Build RougeSnake Debug",
+            "type": "shell",
+            "command": "C:\\raylib\\w64devkit\\bin\\mingw32-make.exe",
+            "osx": {
+                "command": "make"
+            },
+            "args": [
+                "BUILD_MODE=DEBUG",
+                "PROJECT_NAME=RougeSnakeDebug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
         }
     ]
 }

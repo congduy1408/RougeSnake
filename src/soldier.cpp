@@ -56,6 +56,7 @@ void Soldier::ResetCombat() {
     phase_elapsed = 0.0f;
     attack_direction = {};
     strike_cell = {};
+    detected_targets.clear();
 }
 
 void Soldier::CancelAttack() {
@@ -65,6 +66,7 @@ void Soldier::CancelAttack() {
     }
     attack_direction = {};
     strike_cell = {};
+    detected_targets.clear();
 }
 
 SoldierAction Soldier::UpdateCombat(const std::vector<std::unique_ptr<Enemy>>& enemies,
@@ -73,6 +75,30 @@ SoldierAction Soldier::UpdateCombat(const std::vector<std::unique_ptr<Enemy>>& e
     if (attached) has_joined_squad = true;
     const bool can_attack = CanAttack(attached);
     if (!can_attack) CancelAttack();
+
+    if (can_attack && stats.attack_style == AttackStyle::Ranged) {
+        // Rebuild from live enemies, so removed enemies cannot leave dangling targets.
+        detected_targets.clear();
+        for (const auto& enemy : enemies) {
+            if (enemy->IsDead()) continue;
+            const GridPosition target = enemy->GetPosition();
+            const int dx = target.x - position.x;
+            const int dy = target.y - position.y;
+            const int distance = std::max(std::abs(dx), std::abs(dy));
+            if (distance > 0 && distance <= stats.detection_range) {
+                detected_targets.push_back(target);
+            }
+        }
+        if (attack_phase == AttackPhase::Ready || attack_phase == AttackPhase::Prepare) {
+            if (detected_targets.empty()) {
+                if (attack_phase == AttackPhase::Prepare) CancelAttack();
+            } else {
+                const int dx = detected_targets.front().x - position.x;
+                const int dy = detected_targets.front().y - position.y;
+                attack_direction = {(dx > 0) - (dx < 0), (dy > 0) - (dy < 0)};
+            }
+        }
+    }
 
     if (attack_phase != AttackPhase::Ready) {
         phase_elapsed += delta_time;
@@ -104,8 +130,14 @@ SoldierAction Soldier::UpdateCombat(const std::vector<std::unique_ptr<Enemy>>& e
     if (stats.attack_style == AttackStyle::Melee && stats.attack_reach <= 0) return {};
     if (stats.attack_style == AttackStyle::Ranged &&
         (stats.projectile_speed <= 0.0f || stats.projectile_range <= 0)) return {};
+    if (stats.attack_style == AttackStyle::Ranged) {
+        if (!detected_targets.empty()) {
+            attack_phase = AttackPhase::Prepare;
+            phase_elapsed = 0.0f;
+        }
+        return {};
+    }
     int nearest_distance = std::numeric_limits<int>::max();
-    const bool moving_horizontal = cur_dir == dir_left || cur_dir == dir_right;
     GridPosition target_offset;
     bool found = false;
     for (const auto& enemy : enemies) {
@@ -117,16 +149,6 @@ SoldierAction Soldier::UpdateCombat(const std::vector<std::unique_ptr<Enemy>>& e
         // Detection triggers preparation even when the strike cannot reach the enemy.
         if (grid_distance == 0 || grid_distance > stats.detection_range) continue;
         GridPosition aim = {(dx > 0) - (dx < 0), (dy > 0) - (dy < 0)};
-        if (stats.attack_style == AttackStyle::Ranged) {
-            // Fire from either side of this soldier's local movement direction.
-            if (moving_horizontal) {
-                if (dy == 0) continue;
-                aim.x = 0;
-            } else {
-                if (dx == 0) continue;
-                aim.y = 0;
-            }
-        }
         int distance = dx * dx + dy * dy;
         if (distance < nearest_distance) {
             nearest_distance = distance;

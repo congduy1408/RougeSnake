@@ -26,6 +26,16 @@
                     "ignoreFailures": true
                 }
             ]
+        },
+        {
+            "name": "Launch RougeSnake (macOS)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/RougeSnakeDebug",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "lldb",
+            "preLaunchTask": "Build RougeSnake Debug",
+            "externalConsole": false
         }
     ]
 }

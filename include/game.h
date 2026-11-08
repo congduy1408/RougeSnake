@@ -30,6 +30,7 @@ class game {
         bool BlocksProjectile(GridPosition cell) const;
         bool DamageEnemyAt(GridPosition cell, int damage);
         void DrawSoldierAttacks() const;
+        void DrawSquadHud() const;
         void DamageDetachedSoldier(GridPosition position, int damage);
         void ReduceDetachedGhostTime(float delta_time);
         void DrawDetachedSoldiers(const GameTextures& textures) const;
@@ -38,6 +39,7 @@ class game {
         bool FindRecruitSpawnCell(GridPosition& cell) const;
         float GetRecruitSpawnChance(GridPosition cell) const;
         float recruit_spawn_elapsed = 0.0f;
+        bool restart_failed = false;
     public:
         gamestate state;
 

@@ -4,7 +4,7 @@ int cellsize = 16;
 int cellcount_width = 40;
 int cellcount_height = 30;
 int screenWidth = cellsize * cellcount_width;
-int screenHeight = cellsize * cellcount_height;
+int screenHeight = cellsize * cellcount_height + squad_hud_height;
 float fix_update_time = 0.05;
 // float sprite_update_time = 0.05;
 

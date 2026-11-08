@@ -1,3 +1,36 @@
+## macOS development
+
+Open `main.code-workspace` in VS Code. Apple Command Line Tools and Homebrew raylib are required:
+
+```sh
+xcode-select --install  # only if Command Line Tools are missing
+brew install raylib   # only if raylib is missing
+```
+
+From this directory:
+
+```sh
+make -j4
+./RougeSnake
+make -j4 BUILD_MODE=DEBUG PROJECT_NAME=RougeSnakeDebug
+```
+
+From the parent repository directory, use `make -C Untitled -j4` and run with
+`cd Untitled && ./RougeSnake`. The working directory must contain `map/` and `sprite/`.
+
+VS Code: install Microsoft's C/C++ extension (`ms-vscode.cpptools`), then select
+**Launch RougeSnake (macOS)** and press F5. This builds the debug executable and
+uses LLDB. The default build task produces the release executable.
+
+macOS objects are isolated under `obj/OSX/DEBUG` and `obj/OSX/RELEASE`, so copied
+Windows objects are not reused. Header dependencies rebuild automatically.
+`make clean` removes only the selected configuration's objects and executable;
+for debug cleanup use `make clean BUILD_MODE=DEBUG PROJECT_NAME=RougeSnakeDebug`.
+Homebrew's installed raylib is dynamically linked; this is a local development
+build, not a standalone distribution.
+
+---
+
 # Raylib-CPP Starter Template for VS Code
 
 ![Language](https://img.shields.io/badge/language-C%2B%2B-brightgreen)

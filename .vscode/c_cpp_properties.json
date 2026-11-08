@@ -17,6 +17,21 @@
             "defines": [
                 "PLATFORM_DESKTOP"
             ]
+        },
+        {
+            "name": "Mac",
+            "compilerPath": "/usr/bin/clang++",
+            "intelliSenseMode": "macos-clang-arm64",
+            "cppStandard": "c++14",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/include",
+                "/opt/homebrew/include",
+                "/usr/local/include"
+            ],
+            "defines": [
+                "PLATFORM_DESKTOP"
+            ]
         }
     ]
 }
