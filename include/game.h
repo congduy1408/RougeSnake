@@ -8,6 +8,7 @@
 #include "include/game_textures.h"
 #include "include/enemy.h"
 #include "include/soldier.h"
+#include "include/item.h"
 
 // Natural recruitment tuning; terrain and skill bonuses feed the chance calculation.
 struct RecruitSpawnSettings {
@@ -40,6 +41,27 @@ class game {
         float GetRecruitSpawnChance(GridPosition cell) const;
         float recruit_spawn_elapsed = 0.0f;
         bool restart_failed = false;
+        int menu_tab = 0;
+        std::size_t selected_soldier = 0;
+        bool soldier_actions = false;
+        bool confirm_detach = false;
+        int selected_action = 0; // 0: Detach, 1: Heal.
+        int healing_shards = 0;
+        GridPosition healing_shard_position;
+        bool healing_shard_active = false;
+        void SpawnHealingShard();
+        void CollectHealingShard();
+        bool HealSoldier(std::size_t index);
+        void ReadPauseMenuInput();
+        void DrawPauseMenu() const;
+        void CollectCombatItem();
+        void UpdateGroundItemCooldowns(float delta_time);
+        void SpawnTestItem();
+        void UseLeaderItem();
+        float item_feedback_time = 0.0f;
+        std::string item_feedback;
+        std::size_t menu_item = 0;
+        int test_item_sequence = 0;
     public:
         gamestate state;
 
@@ -51,6 +73,8 @@ class game {
         std::vector<std::unique_ptr<Enemy>> enemies;
         std::vector<Soldier> detached_soldiers;
         std::vector<Projectile> projectiles;
+        LeaderInventory inventory;
+        std::vector<GroundItem> ground_items;
 
         RecruitSpawnSettings recruit_spawn;
 

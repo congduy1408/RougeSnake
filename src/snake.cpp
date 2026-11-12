@@ -201,6 +201,14 @@ std::vector<Soldier> Snake::DetachSoldier(int dead_index) {
     return detached;
 }
 
+bool Snake::DetachFollower(std::size_t index, Soldier& detached) {
+    if (index == 0 || index >= body.size()) return false;
+    detached = body[index];
+    detached.CancelAttack();
+    body.erase(body.begin() + index);
+    return true;
+}
+
 void Snake::ReadInput() {
     direction requested_direction;
     if (IsKeyPressed(KEY_RIGHT)){

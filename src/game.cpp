@@ -1,10 +1,25 @@
 #include "include/game.h"
+#include <sstream>
 
 namespace {
 const Color menu_background = {13, 20, 25, 255};
 const Color menu_panel = {23, 34, 40, 255};
 const Color menu_muted = {158, 178, 181, 255};
 const Color menu_accent = {101, 225, 174, 255};
+
+void DrawItemDescription(const std::string& text, int x, int y, int width) {
+    std::istringstream words(text);
+    std::string word, line;
+    while (words >> word) {
+        const std::string next = line.empty() ? word : line + " " + word;
+        if (!line.empty() && MeasureText(next.c_str(), 14) > width) {
+            DrawText(line.c_str(), x, y, 14, menu_muted);
+            y += 21;
+            line = word;
+        } else line = next;
+    }
+    if (!line.empty()) DrawText(line.c_str(), x, y, 14, menu_muted);
+}
 
 Rectangle MenuButton() {
     return {screenWidth / 2.0f - 140, 326, 280, 48};
@@ -67,8 +82,69 @@ void DrawMenuScreen(bool defeated, bool restart_failed) {
 
 game::game(const RoomCatalog& catalog) : room_catalog(catalog) { }
 
+void game::UseLeaderItem() {
+    if (!inventory.UseSelected()) return;
+    // The first real combat effects will be designed with the user next.
+    switch (inventory.items[inventory.selected].effect) {
+        case ItemEffect::None:
+            break;
+        case ItemEffect::TestSignal:
+            item_feedback = "Test item activated";
+            item_feedback_time = 1.0f;
+            break;
+    }
+}
+
+void game::SpawnTestItem() {
+    GridPosition cell;
+    if (!FindRecruitSpawnCell(cell)) return;
+    const auto& fillers = GetFillerItems();
+    const Item item = fillers[static_cast<std::size_t>(test_item_sequence) % fillers.size()];
+    test_item_sequence = (test_item_sequence + 1) % static_cast<int>(fillers.size());
+    ground_items.push_back({item, cell, false});
+}
+
+void game::UpdateGroundItemCooldowns(float delta_time) {
+    for (auto& pickup : ground_items)
+        pickup.item.cooldown_remaining = std::max(0.0f, pickup.item.cooldown_remaining - delta_time);
+}
+
+void game::CollectCombatItem() {
+    const GridPosition head = spawn_snake.GetHeadPosition();
+    for (auto& pickup : ground_items) {
+        if (pickup.position != head) pickup.waiting_for_departure = false;
+    }
+    for (auto it = ground_items.begin(); it != ground_items.end(); ++it) {
+        if (it->position != head || it->waiting_for_departure) continue;
+        if (inventory.items.size() < inventory.Capacity()) {
+            // New pickups do not disturb the current selection unless it is empty.
+            if (inventory.items.empty()) inventory.selected = 0;
+            inventory.items.push_back(it->item);
+            ground_items.erase(it);
+        } else if (!inventory.items.empty()) {
+            inventory.selected = std::min(inventory.selected, inventory.items.size() - 1);
+            std::swap(inventory.items[inventory.selected], it->item);
+            it->waiting_for_departure = true;
+        }
+        return; // At most one pickup per leader movement step.
+    }
+}
+
 bool game::InitGameObject() {
     restart_failed = false;
+    inventory = LeaderInventory{};
+    ground_items.clear();
+    menu_item = 0;
+    item_feedback_time = 0.0f;
+    item_feedback.clear();
+    test_item_sequence = 0;
+    healing_shards = 0;
+    healing_shard_active = false;
+    selected_action = 0;
+    menu_tab = 0;
+    selected_soldier = 0;
+    soldier_actions = false;
+    confirm_detach = false;
     
     state = gamestate();
     state.currentScreen = MAIN_MENU;
@@ -95,6 +171,7 @@ bool game::InitGameObject() {
 }
 
 void game::InitRoomObject() {
+    ground_items.clear();
     enemies.clear();
     for (const auto& marker : room.GetObjectMarkers()) {
         if (marker.name == "enemy") {
@@ -106,6 +183,29 @@ void game::InitRoomObject() {
             // Create item at marker.position
         }
     }
+    SpawnHealingShard();
+}
+
+void game::SpawnHealingShard() {
+    // Reuse the bounded safe-ground scan after room enemies and squad are placed.
+    healing_shard_active = false;
+    healing_shard_active = FindRecruitSpawnCell(healing_shard_position);
+}
+
+void game::CollectHealingShard() {
+    if (healing_shard_active && spawn_snake.GetHeadPosition() == healing_shard_position) {
+        ++healing_shards;
+        healing_shard_active = false;
+    }
+}
+
+bool game::HealSoldier(std::size_t index) {
+    if (index >= spawn_snake.body.size() || healing_shards <= 0) return false;
+    Soldier& soldier = spawn_snake.body[index];
+    if (soldier.hp <= 0 || soldier.hp >= soldier.stats.max_hp) return false;
+    ++soldier.hp;
+    --healing_shards;
+    return true;
 }
 
 bool game::Transition(DoorSide side) {
@@ -165,12 +265,26 @@ void game::Draw(const GameTextures& textures) {
         case MAIN_MENU: {
             DrawMenuScreen(false, false);
         } break;
+        case PAUSE_MENU:
         case STAGE: {
             Camera2D room_camera = {};
             room_camera.offset = {0.0f, static_cast<float>(squad_hud_height)};
             room_camera.zoom = 1.0f;
             BeginMode2D(room_camera);
             board.Draw(textures);
+            if (healing_shard_active) {
+                const int x = healing_shard_position.x * cellsize;
+                const int y = healing_shard_position.y * cellsize;
+                DrawPoly({x + cellsize / 2.0f, y + cellsize / 2.0f}, 4, cellsize * 0.45f, 0, menu_accent);
+                DrawRectangle(x + cellsize / 2 - 1, y + 4, 2, cellsize - 8, menu_background);
+                DrawRectangle(x + 4, y + cellsize / 2 - 1, cellsize - 8, 2, menu_background);
+            }
+            for (const auto& pickup : ground_items) {
+                const int x = pickup.position.x * cellsize;
+                const int y = pickup.position.y * cellsize;
+                DrawRectangle(x + 1, y + 1, cellsize - 2, cellsize - 2, GOLD);
+                DrawText(TextFormat("%c", pickup.item.letter), x + 3, y + 2, 12, menu_background);
+            }
             DrawDetachedSoldiers(textures);
             spawn_snake.Draw(textures);
             for (const auto& enemy : enemies) {
@@ -180,6 +294,7 @@ void game::Draw(const GameTextures& textures) {
             for (const auto& projectile : projectiles) projectile.Draw();
             EndMode2D();
             DrawSquadHud();
+            if (state.currentScreen == PAUSE_MENU) DrawPauseMenu();
         } break;
         case GAMEOVER: {
             DrawMenuScreen(true, restart_failed);
@@ -210,18 +325,169 @@ void game::DrawSquadHud() const {
     DrawText(TextFormat("Veteran x%d", veteran), 320, 16, 16, ORANGE);
     DrawText(TextFormat("Archer x%d", archer), 480, 16, 16, VIOLET);
 
-    DrawText("CIPHER", 16, 50, 14, menu_muted);
-    DrawText("ITEMS", 336, 50, 14, menu_muted);
-    for (int i = 0; i < 5; ++i) {
-        const int x = 84 + i * 22;
-        DrawRectangleLines(x, 46, 18, 22, Fade(menu_muted, 0.35f));
-        DrawText("-", x + 5, 51, 12, menu_muted);
-        DrawRectangleLines(396 + i * 22, 46, 18, 22, Fade(menu_muted, 0.35f));
+    DrawText("CIPHER", 12, 40, 12, menu_muted);
+    const auto matches = inventory.CipherMatches();
+    for (std::size_t i = 0; i < matches.size(); ++i) {
+        if (i >= 8) break; // Full inventory/cipher details remain available in the menu.
+        const int x = 72 + static_cast<int>(i) * 17;
+        DrawText(TextFormat("%c", inventory.cipher[i]), x, 40, 12, matches[i] ? menu_accent : menu_muted);
     }
-    DrawText("Not available", 202, 53, 10, menu_muted);
-    DrawText("Not available", 514, 53, 10, menu_muted);
+    DrawText(TextFormat("ITEMS %d/%d", static_cast<int>(inventory.items.size()),
+             static_cast<int>(inventory.Capacity())), 222, 40, 12, menu_muted);
+    const std::size_t first_item = inventory.selected >= 6 ? inventory.selected - 5 : 0;
+    for (std::size_t i = first_item; i < inventory.items.size() && i < first_item + 6; ++i) {
+        const int x = 322 + static_cast<int>(i - first_item) * 22;
+        DrawRectangleLines(x, 35, 19, 22, i == inventory.selected ? menu_accent : menu_muted);
+        DrawText(TextFormat("%c", inventory.items[i].letter), x + 5, 40, 12,
+                 inventory.items[i].cooldown_remaining > 0 ? menu_muted : RAYWHITE);
+    }
+    DrawText(TextFormat("HEAL x%d", healing_shards), 492, 40, 16, menu_accent);
+    if (inventory.selected < inventory.items.size()) {
+        const auto& item = inventory.items[inventory.selected];
+        if (item.effect == ItemEffect::None)
+            DrawText(TextFormat("A/D: Select  %s  -  Passive cipher item", item.name.c_str()), 12, 63, 10, menu_muted);
+        else DrawText(TextFormat("A/D: Select  SPACE: Use  %s  %.1fs", item.name.c_str(), item.cooldown_remaining),
+                      12, 63, 10, menu_muted);
+    } else DrawText("A/D: Select   SPACE: Use   TAB: Menu", 12, 63, 10, menu_muted);
+    if (item_feedback_time > 0) DrawText(item_feedback.c_str(), 400, 63, 10, menu_accent);
     DrawLine(0, squad_hud_height - 1, screenWidth, squad_hud_height - 1,
              Fade(menu_accent, 0.45f));
+}
+
+void game::DrawPauseMenu() const {
+    DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.8f));
+    DrawRectangle(24, 36, screenWidth - 48, screenHeight - 72, menu_panel);
+    DrawText("EXPEDITION MENU", 44, 54, 20, menu_accent);
+    DrawText("PAUSED", screenWidth - 108, 58, 12, menu_muted);
+    const char* tabs[] = {"SQUAD", "ITEMS", "ENEMIES", "BOSS TRAVEL"};
+    for (int i = 0; i < 4; ++i) {
+        const int x = 44 + i * 140;
+        DrawText(tabs[i], x, 98, 14, menu_tab == i ? menu_accent : menu_muted);
+        if (menu_tab == i) DrawRectangle(x, 120, 115, 2, menu_accent);
+    }
+    if (menu_tab == 0) {
+        const std::size_t first = selected_soldier >= 8 ? selected_soldier - 7 : 0;
+        for (std::size_t i = first; i < spawn_snake.body.size() && i < first + 8; ++i) {
+            const Soldier& soldier = spawn_snake.body[i];
+            const char* role = soldier.type == SoldierType::Archer ? "Archer" :
+                               soldier.type == SoldierType::Veteran ? "Veteran" : "Basic";
+            const int y = 150 + static_cast<int>(i - first) * 32;
+            if (i == selected_soldier) DrawRectangle(40, y - 4, 204, 28, Fade(menu_accent, 0.16f));
+            DrawText(i == 0 ? "Leader" : TextFormat("%d. %s", static_cast<int>(i), role),
+                     52, y, 16, i == selected_soldier ? menu_accent : RAYWHITE);
+        }
+        if (selected_soldier < spawn_snake.body.size()) {
+            const Soldier& soldier = spawn_snake.body[selected_soldier];
+            DrawText(selected_soldier == 0 ? "LEADER" : "FOLLOWER", 274, 152, 18, RAYWHITE);
+            DrawText(TextFormat("HP: %d / %d", soldier.hp, soldier.stats.max_hp), 274, 190, 18, menu_accent);
+            const char* role = soldier.type == SoldierType::Archer ? "Archer" :
+                               soldier.type == SoldierType::Veteran ? "Veteran" : "Basic";
+            DrawText(selected_soldier == 0 ? "Leader details coming later." : role, 274, 222, 14, menu_muted);
+            const bool can_heal = healing_shards > 0 && soldier.hp > 0 && soldier.hp < soldier.stats.max_hp;
+            if (soldier_actions)
+                DrawRectangle(264, selected_action == 0 ? 270 : 302, 326, 28, Fade(menu_accent, 0.12f));
+            DrawText(selected_soldier == 0 ? "Detach unavailable for leader" : "Detach selected follower",
+                     274, 276, 14, selected_soldier == 0 ? menu_muted : menu_accent);
+            DrawText(TextFormat("Heal +1 HP (%d shards)", healing_shards), 274, 308, 14,
+                     can_heal ? menu_accent : menu_muted);
+            if (soldier_actions && selected_action == 1)
+                DrawText(soldier.hp >= soldier.stats.max_hp ? "Already at full health." :
+                         healing_shards == 0 ? "Collect a healing shard first." : "Uses one shard. Enter to heal.",
+                         274, 402, 12, menu_muted);
+            if (confirm_detach) {
+                DrawText("Leave this soldier in the room?", 274, 354, 14, ORANGE);
+                DrawText("Enter: Confirm   Esc: Cancel", 274, 380, 12, RAYWHITE);
+            } else if (soldier_actions) {
+                DrawText("Up/Down: Action   Enter: Use", 274, 354, 14, menu_muted);
+            }
+        }
+    } else if (menu_tab == 1) {
+        DrawText(TextFormat("LEADER ITEMS %d / %d", static_cast<int>(inventory.items.size()),
+                 static_cast<int>(inventory.Capacity())), 44, 143, 16, RAYWHITE);
+        const std::size_t first = menu_item >= 6 ? menu_item - 5 : 0;
+        for (std::size_t i = first; i < inventory.items.size() && i < first + 6; ++i) {
+            const int y = 178 + static_cast<int>(i - first) * 30;
+            if (i == menu_item) DrawRectangle(40, y - 3, 220, 26, Fade(menu_accent, 0.16f));
+            DrawText(TextFormat("%d. [%c] %s", static_cast<int>(i + 1), inventory.items[i].letter,
+                     inventory.items[i].name.c_str()), 48, y, 12, i == inventory.selected ? menu_accent : RAYWHITE);
+        }
+        if (menu_item < inventory.items.size()) {
+            const auto& item = inventory.items[menu_item];
+            DrawText(item.name.c_str(), 284, 150, 16, RAYWHITE);
+            DrawText(TextFormat("Letter: %c", item.letter), 284, 180, 18, menu_accent);
+            if (item.effect == ItemEffect::None)
+                DrawText("Passive cipher item", 284, 214, 14, menu_muted);
+            else DrawText(TextFormat("Cooldown: %.1f / %.1f s", item.cooldown_remaining, item.cooldown),
+                          284, 214, 14, menu_muted);
+            DrawItemDescription(item.description, 284, 248, 300);
+            if (item.id == "cryptbound_book")
+                DrawText("Clue reveal: coming later.", 284, 328, 12, menu_muted);
+            DrawText("Enter: Select item", 284, 356, 12, RAYWHITE);
+        } else DrawText("No items. J places a filler pickup.", 48, 185, 14, menu_muted);
+        DrawText(TextFormat("CONSUMABLES   Healing Shards: %d", healing_shards), 44, 393, 14, menu_accent);
+        DrawText("Use Heal in the Squad tab. Shards use no item slots.", 44, 422, 12, menu_muted);
+    } else {
+        const char* descriptions[] = {"", "Collected items and their effects.",
+            "Information about encountered enemies.", "Travel to eligible boss rooms."};
+        DrawText(descriptions[menu_tab], 52, 174, 18, RAYWHITE);
+        DrawText("Coming later. No actions available yet.", 52, 216, 16, menu_muted);
+    }
+    DrawText("Q / W: Tabs     Up / Down: Select     Enter: Actions", 44, screenHeight - 92, 12, menu_muted);
+    DrawText("Tab: Resume     Esc: Back / Resume", 44, screenHeight - 66, 12, menu_muted);
+}
+
+void game::ReadPauseMenuInput() {
+    if (IsKeyPressed(KEY_TAB)) {
+        state.currentScreen = STAGE;
+        soldier_actions = confirm_detach = false;
+        return;
+    }
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        if (confirm_detach) confirm_detach = false;
+        else if (soldier_actions) soldier_actions = false;
+        else state.currentScreen = STAGE;
+        return;
+    }
+    if (IsKeyPressed(KEY_Q) || IsKeyPressed(KEY_W)) {
+        menu_tab = (menu_tab + (IsKeyPressed(KEY_Q) ? 3 : 1)) % 4;
+        soldier_actions = confirm_detach = false;
+        return;
+    }
+    if (menu_tab == 1) {
+        if (inventory.items.empty()) return;
+        menu_item = std::min(menu_item, inventory.items.size() - 1);
+        if (IsKeyPressed(KEY_UP) && menu_item > 0) --menu_item;
+        if (IsKeyPressed(KEY_DOWN) && menu_item + 1 < inventory.items.size()) ++menu_item;
+        if (IsKeyPressed(KEY_ENTER)) inventory.selected = menu_item;
+        return;
+    }
+    if (menu_tab != 0 || spawn_snake.body.empty()) return;
+    selected_soldier = std::min(selected_soldier, spawn_snake.body.size() - 1);
+    if (!soldier_actions) {
+        if (IsKeyPressed(KEY_UP) && selected_soldier > 0) --selected_soldier;
+        if (IsKeyPressed(KEY_DOWN) && selected_soldier + 1 < spawn_snake.body.size()) ++selected_soldier;
+        if (IsKeyPressed(KEY_ENTER)) {
+            soldier_actions = true;
+            selected_action = selected_soldier == 0 ? 1 : 0;
+        }
+    } else {
+        if (!confirm_detach && (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_DOWN)))
+            selected_action = 1 - selected_action;
+        if (!IsKeyPressed(KEY_ENTER)) return;
+        if (selected_action == 1) {
+            HealSoldier(selected_soldier);
+            return;
+        }
+        if (selected_soldier == 0) return;
+        if (!confirm_detach) confirm_detach = true;
+        else {
+            Soldier detached;
+            if (spawn_snake.DetachFollower(selected_soldier, detached))
+                detached_soldiers.push_back(std::move(detached));
+            selected_soldier = std::min(selected_soldier, spawn_snake.body.size() - 1);
+            soldier_actions = confirm_detach = false;
+        }
+    }
 }
 
 void game::DrawDetachedSoldiers(const GameTextures& textures) const {
@@ -268,7 +534,20 @@ void game::ReadInput() {
             }
         } break;
         case STAGE: {
-            spawn_snake.ReadInput();
+            if (IsKeyPressed(KEY_TAB) || IsKeyPressed(KEY_ESCAPE)) {
+                state.currentScreen = PAUSE_MENU;
+                selected_soldier = 0;
+                soldier_actions = confirm_detach = false;
+            } else {
+                spawn_snake.ReadInput();
+                if (IsKeyPressed(KEY_A)) inventory.Cycle(-1);
+                if (IsKeyPressed(KEY_D)) inventory.Cycle(1);
+                if (IsKeyPressed(KEY_SPACE) && !spawn_snake.IsDead()) UseLeaderItem();
+                if (IsKeyPressed(KEY_J)) SpawnTestItem();
+            }
+        } break;
+        case PAUSE_MENU: {
+            ReadPauseMenuInput();
         } break;
         case GAMEOVER: {
             if (MenuButtonPressed())
@@ -295,6 +574,9 @@ void game::FixUpdate(float interval) {
         state.currentScreen = GAMEOVER;
         return;
     }
+    inventory.UpdateCooldowns(interval);
+    UpdateGroundItemCooldowns(interval);
+    item_feedback_time = std::max(0.0f, item_feedback_time - interval);
     // Update snake movement base on interval
     bool snake_moved = spawn_snake.UpdateMovement(interval);
     spawn_snake.ReduceGhostTime(interval);
@@ -327,6 +609,8 @@ void game::FixUpdate(float interval) {
             }
         }
         HandleSoldierRescue();
+        CollectHealingShard();
+        CollectCombatItem();
 
     }
     // process enemy
@@ -498,6 +782,9 @@ bool game::FindRecruitSpawnCell(GridPosition& cell) const {
         for (int y = 0; y < board.GetHeight(); ++y) {
             GridPosition candidate = {x, y};
             if (board.GetCellType(candidate) != GROUND) continue;
+            if (healing_shard_active && candidate == healing_shard_position) continue;
+            if (std::any_of(ground_items.begin(), ground_items.end(),
+                [&](const GroundItem& item) { return item.position == candidate; })) continue;
             bool occupied = std::any_of(spawn_snake.body.begin(), spawn_snake.body.end(),
                 [&](const Soldier& soldier) { return soldier.position == candidate; });
             occupied = occupied || std::any_of(detached_soldiers.begin(), detached_soldiers.end(),

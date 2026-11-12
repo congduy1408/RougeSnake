@@ -1,3 +1,5 @@
+For current implementation, controls, pending decisions, and switching-device instructions, read [HANDOFF.md](HANDOFF.md).
+
 ## macOS development
 
 Open `main.code-workspace` in VS Code. Apple Command Line Tools and Homebrew raylib are required:

@@ -9,6 +9,7 @@ int main()
 {
     InitWindow(screenWidth, screenHeight, "Rouge Snake");
     SetTargetFPS(60);
+    SetExitKey(KEY_NULL); // Esc belongs to the pause menu during gameplay.
 
     constexpr double fixed_time_step = 1.0 / 60.0;
     double accumulated_time = 0.0;
@@ -39,6 +40,8 @@ int main()
             accumulated_time += frame_time;
             
             game.ReadInput();
+            if ((game.state.currentScreen == MAIN_MENU || game.state.currentScreen == GAMEOVER) &&
+                IsKeyPressed(KEY_ESCAPE)) break;
             if (game.state.currentScreen == STAGE) {
                 test.ModifySnakeHp(game.spawn_snake, 2, game.detached_soldiers);
                 test.RecruitSoldier(game.spawn_snake);
