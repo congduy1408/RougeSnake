@@ -52,6 +52,10 @@ bool Enemy::IsDead() const {
     return hp <= 0;
 }
 
+void Enemy::ApplySlow(float duration) {
+    slow_remaining = std::max(slow_remaining, duration);
+}
+
 void Enemy::OnSnakeEnter(Snake& snake) {
     // TakeDamage(1);
 }
@@ -67,11 +71,14 @@ EnemyAction Enemy::Update(const Board& board, const Snake& snake,
         return {};
     }
 
+    // Slow affects movement only; attack phases still use real gameplay time.
+    const float slowed_time = std::min(delta_time, slow_remaining);
+    slow_remaining = std::max(0.0f, slow_remaining - delta_time);
     if (attack_phase != AttackPhase::Ready) {
         return UpdateAttack(delta_time);
     }
 
-    return UpdateBehavior(board, snake, detached_soldiers, delta_time);
+    return UpdateBehavior(board, snake, detached_soldiers, delta_time - slowed_time * 0.5f);
 }
 
 EnemyAction Enemy::UpdateAttack(float delta_time) {
@@ -116,21 +123,21 @@ EnemyAction Enemy::UpdateBehavior(const Board& board, const Snake& snake,
 
     // Prefer attached soldiers, then inspect detached soldiers in storage order.
     GridPosition target_position;
-    const auto find_target = [&](const std::vector<Soldier>& soldiers) {
+    const auto find_target = [&](const std::vector<Soldier>& soldiers, int radius) {
         for (const auto& soldier : soldiers) {
             if (soldier.hp <= 0) continue;
             int dx = soldier.position.x - position.x;
             int dy = soldier.position.y - position.y;
             if (dx == 0 && dy == 0) continue;
-            if (std::abs(dx) <= observation_radius &&
-                std::abs(dy) <= observation_radius) {
+            if (std::abs(dx) <= radius && std::abs(dy) <= radius) {
                 target_position = soldier.position;
                 return true;
             }
         }
         return false;
     };
-    bool target_found = find_target(snake.body) || find_target(detached_soldiers);
+    bool target_found = find_target(snake.body, std::max(1, observation_radius - detection_reduction)) ||
+                        find_target(detached_soldiers, observation_radius);
     // if player inside observe zone, attack the player direction
     if (target_found) {
         pending_target.clear();

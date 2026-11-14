@@ -83,24 +83,50 @@ void DrawMenuScreen(bool defeated, bool restart_failed) {
 game::game(const RoomCatalog& catalog) : room_catalog(catalog) { }
 
 void game::UseLeaderItem() {
+    if (state.currentScreen != STAGE || spawn_snake.IsDead()) return;
     if (!inventory.UseSelected()) return;
-    // The first real combat effects will be designed with the user next.
     switch (inventory.items[inventory.selected].effect) {
         case ItemEffect::None:
+        case ItemEffect::DawnVeil:
+        case ItemEffect::GraveShade:
+        case ItemEffect::HollowNight: // Passive; UseSelected rejects auras.
             break;
         case ItemEffect::TestSignal:
             item_feedback = "Test item activated";
             item_feedback_time = 1.0f;
             break;
+        case ItemEffect::Fireball: {
+            const GridPosition aim = LeaderAim();
+            SoldierAction action;
+            action.projectiles.push_back({spawn_snake.GetHeadPosition(), aim, 20.0f, 8, LeaderSpellDamage(),
+                                          ProjectileVisual::Fireball});
+            ProcessSoldierAttack(action);
+            break;
+        }
+        case ItemEffect::SaintsHalo:
+        case ItemEffect::IceSpike:
+        case ItemEffect::LightningChain:
+        case ItemEffect::WaterWall:
+        case ItemEffect::EarthPillar:
+        case ItemEffect::GraveBloom:
+            if (!CastSpell(inventory.items[inventory.selected].effect)) {
+                inventory.items[inventory.selected].cooldown_remaining = 0;
+                item_feedback = "No valid target or placement";
+                item_feedback_time = 1;
+            }
+            break;
     }
 }
 
-void game::SpawnTestItem() {
+void game::SpawnTestItem(ItemCategory category) {
     GridPosition cell;
     if (!FindRecruitSpawnCell(cell)) return;
     const auto& fillers = GetFillerItems();
-    const Item item = fillers[static_cast<std::size_t>(test_item_sequence) % fillers.size()];
-    test_item_sequence = (test_item_sequence + 1) % static_cast<int>(fillers.size());
+    const Item item = category == ItemCategory::Aura ? GetAuraItems()[test_aura_sequence++ % GetAuraItems().size()] :
+                      category == ItemCategory::Spell ? GetSpellItems()[test_spell_sequence++ % GetSpellItems().size()] :
+                      fillers[static_cast<std::size_t>(test_item_sequence) % fillers.size()];
+    if (category == ItemCategory::Filler)
+        test_item_sequence = (test_item_sequence + 1) % static_cast<int>(fillers.size());
     ground_items.push_back({item, cell, false});
 }
 
@@ -123,8 +149,13 @@ void game::CollectCombatItem() {
             ground_items.erase(it);
         } else if (!inventory.items.empty()) {
             inventory.selected = std::min(inventory.selected, inventory.items.size() - 1);
-            std::swap(inventory.items[inventory.selected], it->item);
-            it->waiting_for_departure = true;
+            if (inventory.items[inventory.selected].category == ItemCategory::Aura) {
+                inventory.items[inventory.selected] = it->item;
+                ground_items.erase(it); // Discarded auras vanish; no collectible remnant.
+            } else {
+                std::swap(inventory.items[inventory.selected], it->item);
+                it->waiting_for_departure = true;
+            }
         }
         return; // At most one pickup per leader movement step.
     }
@@ -138,6 +169,8 @@ bool game::InitGameObject() {
     item_feedback_time = 0.0f;
     item_feedback.clear();
     test_item_sequence = 0;
+    test_spell_sequence = test_aura_sequence = 0;
+    world_spells.clear();
     healing_shards = 0;
     healing_shard_active = false;
     selected_action = 0;
@@ -171,6 +204,7 @@ bool game::InitGameObject() {
 }
 
 void game::InitRoomObject() {
+    world_spells.clear();
     ground_items.clear();
     enemies.clear();
     for (const auto& marker : room.GetObjectMarkers()) {
@@ -203,7 +237,8 @@ bool game::HealSoldier(std::size_t index) {
     if (index >= spawn_snake.body.size() || healing_shards <= 0) return false;
     Soldier& soldier = spawn_snake.body[index];
     if (soldier.hp <= 0 || soldier.hp >= soldier.stats.max_hp) return false;
-    ++soldier.hp;
+    const int amount = inventory.HasAura(ItemEffect::DawnVeil) ? 2 : 1;
+    soldier.hp += std::min(amount, soldier.stats.max_hp - soldier.hp);
     --healing_shards;
     return true;
 }
@@ -285,10 +320,15 @@ void game::Draw(const GameTextures& textures) {
                 DrawRectangle(x + 1, y + 1, cellsize - 2, cellsize - 2, GOLD);
                 DrawText(TextFormat("%c", pickup.item.letter), x + 3, y + 2, 12, menu_background);
             }
+            DrawSpellEffects();
             DrawDetachedSoldiers(textures);
             spawn_snake.Draw(textures);
             for (const auto& enemy : enemies) {
                 enemy->Draw();
+            }
+            for (const auto& soldier : spawn_snake.body) {
+                if (soldier.shield_charge) DrawCircleLines(soldier.position.x * cellsize + cellsize / 2,
+                    soldier.position.y * cellsize + cellsize / 2, cellsize * 0.48f, GOLD);
             }
             DrawSoldierAttacks();
             for (const auto& projectile : projectiles) projectile.Draw();
@@ -344,7 +384,9 @@ void game::DrawSquadHud() const {
     DrawText(TextFormat("HEAL x%d", healing_shards), 492, 40, 16, menu_accent);
     if (inventory.selected < inventory.items.size()) {
         const auto& item = inventory.items[inventory.selected];
-        if (item.effect == ItemEffect::None)
+        if (item.category == ItemCategory::Aura)
+            DrawText(TextFormat("A/D: Select  %s  -  Aura active while carried", item.name.c_str()), 12, 63, 10, menu_accent);
+        else if (item.effect == ItemEffect::None)
             DrawText(TextFormat("A/D: Select  %s  -  Passive cipher item", item.name.c_str()), 12, 63, 10, menu_muted);
         else DrawText(TextFormat("A/D: Select  SPACE: Use  %s  %.1fs", item.name.c_str(), item.cooldown_remaining),
                       12, 63, 10, menu_muted);
@@ -388,7 +430,7 @@ void game::DrawPauseMenu() const {
                 DrawRectangle(264, selected_action == 0 ? 270 : 302, 326, 28, Fade(menu_accent, 0.12f));
             DrawText(selected_soldier == 0 ? "Detach unavailable for leader" : "Detach selected follower",
                      274, 276, 14, selected_soldier == 0 ? menu_muted : menu_accent);
-            DrawText(TextFormat("Heal +1 HP (%d shards)", healing_shards), 274, 308, 14,
+            DrawText(TextFormat("Heal +%d HP (%d shards)", inventory.HasAura(ItemEffect::DawnVeil) ? 2 : 1, healing_shards), 274, 308, 14,
                      can_heal ? menu_accent : menu_muted);
             if (soldier_actions && selected_action == 1)
                 DrawText(soldier.hp >= soldier.stats.max_hp ? "Already at full health." :
@@ -415,7 +457,9 @@ void game::DrawPauseMenu() const {
             const auto& item = inventory.items[menu_item];
             DrawText(item.name.c_str(), 284, 150, 16, RAYWHITE);
             DrawText(TextFormat("Letter: %c", item.letter), 284, 180, 18, menu_accent);
-            if (item.effect == ItemEffect::None)
+            if (item.category == ItemCategory::Aura)
+                DrawText("Aura active - does not stack", 284, 214, 14, menu_accent);
+            else if (item.effect == ItemEffect::None)
                 DrawText("Passive cipher item", 284, 214, 14, menu_muted);
             else DrawText(TextFormat("Cooldown: %.1f / %.1f s", item.cooldown_remaining, item.cooldown),
                           284, 214, 14, menu_muted);
@@ -423,7 +467,10 @@ void game::DrawPauseMenu() const {
             if (item.id == "cryptbound_book")
                 DrawText("Clue reveal: coming later.", 284, 328, 12, menu_muted);
             DrawText("Enter: Select item", 284, 356, 12, RAYWHITE);
-        } else DrawText("No items. J places a filler pickup.", 48, 185, 14, menu_muted);
+        } else {
+            DrawText("J: Filler   U: Cycle auras", 48, 185, 14, menu_muted);
+            DrawText("P: Cycle spells", 48, 215, 14, menu_muted);
+        }
         DrawText(TextFormat("CONSUMABLES   Healing Shards: %d", healing_shards), 44, 393, 14, menu_accent);
         DrawText("Use Heal in the Squad tab. Shards use no item slots.", 44, 422, 12, menu_muted);
     } else {
@@ -544,6 +591,8 @@ void game::ReadInput() {
                 if (IsKeyPressed(KEY_D)) inventory.Cycle(1);
                 if (IsKeyPressed(KEY_SPACE) && !spawn_snake.IsDead()) UseLeaderItem();
                 if (IsKeyPressed(KEY_J)) SpawnTestItem();
+                if (IsKeyPressed(KEY_U)) SpawnTestItem(ItemCategory::Aura);
+                if (IsKeyPressed(KEY_P)) SpawnTestItem(ItemCategory::Spell);
             }
         } break;
         case PAUSE_MENU: {
@@ -574,6 +623,7 @@ void game::FixUpdate(float interval) {
         state.currentScreen = GAMEOVER;
         return;
     }
+    UpdateSpellTimers(interval);
     inventory.UpdateCooldowns(interval);
     UpdateGroundItemCooldowns(interval);
     item_feedback_time = std::max(0.0f, item_feedback_time - interval);
@@ -616,9 +666,14 @@ void game::FixUpdate(float interval) {
     // process enemy
     // collect enemy attack
     std::vector<EnemyAction> actions_list;
+    Board enemy_board = board;
+    for (int x = 0; x < board.GetWidth(); ++x)
+        for (int y = 0; y < board.GetHeight(); ++y)
+            if (SpellBlocksEnemy({x, y})) enemy_board.SetCell({x, y}, WALL);
     for(auto& enemy: enemies) {
         if (enemy->IsDead()) continue;
-        EnemyAction action = enemy->Update(board, spawn_snake, detached_soldiers, interval);
+        enemy->SetDetectionReduction(inventory.HasAura(ItemEffect::GraveShade) ? 1 : 0);
+        EnemyAction action = enemy->Update(enemy_board, spawn_snake, detached_soldiers, interval);
         if (!action.attack_zone.empty()) {
             actions_list.push_back(action);
         }
@@ -627,10 +682,18 @@ void game::FixUpdate(float interval) {
     std::vector<SoldierAction> soldier_actions;
     for (std::size_t i = 1; i < spawn_snake.body.size(); ++i) {
         SoldierAction action = spawn_snake.body[i].UpdateCombat(enemies, true, interval);
+        if (inventory.HasAura(ItemEffect::HollowNight) && spawn_snake.body[i].hp == 1) {
+            if (action.damage > 0) ++action.damage;
+            for (auto& shot : action.projectiles) ++shot.damage;
+        }
         if (!action.attack_zone.empty() || !action.projectiles.empty()) soldier_actions.push_back(action);
     }
     for (auto& soldier : detached_soldiers) {
         SoldierAction action = soldier.UpdateCombat(enemies, false, interval);
+        if (inventory.HasAura(ItemEffect::HollowNight) && soldier.hp == 1) {
+            if (action.damage > 0) ++action.damage;
+            for (auto& shot : action.projectiles) ++shot.damage;
+        }
         if (!action.attack_zone.empty() || !action.projectiles.empty()) soldier_actions.push_back(action);
     }
     // process enemy attack
@@ -646,6 +709,7 @@ void game::FixUpdate(float interval) {
     // Released strikes survive an attacker's death, unless the leader's death ended the run.
     for (const auto& action : soldier_actions) ProcessSoldierAttack(action);
 
+    UpdateBloomAttacks(interval);
     // remove dead enemies
     CleanupDeadEnemies();
     UpdateRecruitSpawning(interval);
@@ -668,14 +732,15 @@ void game::ProcessSoldierAttack(const SoldierAction& action) {
 bool game::BlocksProjectile(GridPosition cell) const {
     if (!board.IsInside(cell)) return true;
     CellType type = board.GetCellType(cell);
-    return type == WALL || type == NONE;
+    return type == WALL || type == NONE || SpellBlocksEnemy(cell);
 }
 
 // Resolve one enemy hit without erasing during attack processing.
-bool game::DamageEnemyAt(GridPosition cell, int damage) {
+bool game::DamageEnemyAt(GridPosition cell, int damage, float slow_duration) {
     for (auto& enemy : enemies) {
         if (!enemy->IsDead() && enemy->GetPosition() == cell) {
             enemy->TakeDamage(damage);
+            if (slow_duration > 0 && !enemy->IsDead()) enemy->ApplySlow(slow_duration);
             return true;
         }
     }
@@ -686,7 +751,7 @@ bool game::DamageEnemyAt(GridPosition cell, int damage) {
 void game::UpdateProjectiles(float delta_time) {
     for (auto it = projectiles.begin(); it != projectiles.end();) {
         bool finished = it->remaining_steps <= 0 || BlocksProjectile(it->position);
-        if (!finished && it->has_moved) finished = DamageEnemyAt(it->position, it->damage);
+        if (!finished && it->has_moved) finished = DamageEnemyAt(it->position, it->damage, it->slow_duration);
         it->movement_progress += it->speed * delta_time;
         while (!finished && it->movement_progress >= 1.0f) {
             GridPosition next = {it->position.x + it->direction.x,
@@ -702,7 +767,7 @@ void game::UpdateProjectiles(float delta_time) {
             it->has_moved = true;
             it->movement_progress -= 1.0f;
             --it->remaining_steps;
-            finished = DamageEnemyAt(next, it->damage) || it->remaining_steps <= 0;
+            finished = DamageEnemyAt(next, it->damage, it->slow_duration) || it->remaining_steps <= 0;
         }
         if (finished) it = projectiles.erase(it);
         else ++it;
@@ -745,6 +810,11 @@ void game::DamageDetachedSoldier(GridPosition position, int damage) {
     for (auto it = detached_soldiers.begin(); it != detached_soldiers.end(); ++it) {
         if (it->hp <= 0 || !(it->position == position)) continue;
         if (it->ghost_time > 0.0f) return;
+        if (it->shield_charge) {
+            it->shield_charge = false;
+            it->ghost_time = Soldier::initial_ghost_time;
+            return;
+        }
 
         it->hp -= damage;
         if (it->hp <= 0) {
@@ -783,6 +853,10 @@ bool game::FindRecruitSpawnCell(GridPosition& cell) const {
             GridPosition candidate = {x, y};
             if (board.GetCellType(candidate) != GROUND) continue;
             if (healing_shard_active && candidate == healing_shard_position) continue;
+            if (SpellBlocksEnemy(candidate)) continue;
+            if (std::any_of(world_spells.begin(), world_spells.end(), [candidate](const WorldSpell& spell) {
+                return spell.effect == ItemEffect::GraveBloom && spell.cells.front() == candidate;
+            })) continue;
             if (std::any_of(ground_items.begin(), ground_items.end(),
                 [&](const GroundItem& item) { return item.position == candidate; })) continue;
             bool occupied = std::any_of(spawn_snake.body.begin(), spawn_snake.body.end(),

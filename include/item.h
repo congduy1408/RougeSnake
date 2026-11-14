@@ -2,7 +2,8 @@
 #include "common.h"
 
 enum class ItemCategory { Filler, Weapon, Spell, Aura };
-enum class ItemEffect { None, TestSignal };
+enum class ItemEffect { None, TestSignal, DawnVeil, Fireball, SaintsHalo, GraveShade,
+                        HollowNight, IceSpike, LightningChain, WaterWall, EarthPillar, GraveBloom };
 
 struct Item {
     std::string id;
@@ -16,6 +17,10 @@ struct Item {
 };
 
 const std::vector<Item>& GetFillerItems();
+const Item& GetDawnVeil();
+const Item& GetFireball();
+const std::vector<Item>& GetSpellItems();
+const std::vector<Item>& GetAuraItems();
 
 struct GroundItem {
     Item item;
@@ -32,5 +37,6 @@ struct LeaderInventory {
     void Cycle(int step);
     void UpdateCooldowns(float delta_time);
     bool UseSelected();
+    bool HasAura(ItemEffect effect) const;
     std::vector<bool> CipherMatches() const;
 };

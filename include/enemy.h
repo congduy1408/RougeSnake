@@ -18,6 +18,8 @@ class Enemy: public GameObject {
         virtual void Draw() const;\
         void TakeDamage(int damage);
         bool IsDead() const;
+        void ApplySlow(float duration);
+        void SetDetectionReduction(int reduction) { detection_reduction = std::max(0, reduction); }
         void OnSnakeEnter(Snake& snake) override;
         virtual EnemyAction Update(const Board& board, const Snake& snake,
                                    const std::vector<Soldier>& detached_soldiers, float delta_time);
@@ -28,6 +30,8 @@ class Enemy: public GameObject {
         float ghost_phase = 0.3f;
 
         int observation_radius = 1;
+        int detection_reduction = 0;
+        float slow_remaining = 0.0f;
         std::vector<GridPosition> visible_attack_zone;
 
         AttackPhase attack_phase = AttackPhase::Ready;

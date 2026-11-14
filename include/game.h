@@ -21,6 +21,13 @@ struct RecruitSpawnSettings {
     };
 };
 
+struct WorldSpell {
+    ItemEffect effect;
+    std::vector<GridPosition> cells;
+    float remaining;
+    float attack_elapsed = 0;
+};
+
 class game {
     private:
         const RoomCatalog& room_catalog;
@@ -29,7 +36,7 @@ class game {
         void ProcessSoldierAttack(const SoldierAction& action);
         void UpdateProjectiles(float delta_time);
         bool BlocksProjectile(GridPosition cell) const;
-        bool DamageEnemyAt(GridPosition cell, int damage);
+        bool DamageEnemyAt(GridPosition cell, int damage, float slow_duration = 0);
         void DrawSoldierAttacks() const;
         void DrawSquadHud() const;
         void DamageDetachedSoldier(GridPosition position, int damage);
@@ -56,12 +63,22 @@ class game {
         void DrawPauseMenu() const;
         void CollectCombatItem();
         void UpdateGroundItemCooldowns(float delta_time);
-        void SpawnTestItem();
+        void SpawnTestItem(ItemCategory category = ItemCategory::Filler);
         void UseLeaderItem();
         float item_feedback_time = 0.0f;
         std::string item_feedback;
         std::size_t menu_item = 0;
         int test_item_sequence = 0;
+        int test_spell_sequence = 0;
+        int test_aura_sequence = 0;
+        std::vector<WorldSpell> world_spells;
+        bool CastSpell(ItemEffect effect);
+        GridPosition LeaderAim() const;
+        int LeaderSpellDamage() const;
+        bool SpellBlocksEnemy(GridPosition cell) const;
+        void UpdateSpellTimers(float delta_time);
+        void UpdateBloomAttacks(float delta_time);
+        void DrawSpellEffects() const;
     public:
         gamestate state;
 

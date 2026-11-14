@@ -39,6 +39,7 @@ struct Soldier {
     direction pre_dir = dir_right;
     bool is_turn=false;
     int hp;
+    bool shield_charge = false;
     float ghost_time = 0; 
     bool has_joined_squad = false;
 

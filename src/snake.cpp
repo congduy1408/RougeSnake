@@ -388,6 +388,11 @@ std::vector<Soldier> Snake::DamageNode(GridPosition position, int damage) {
         if (body[i].position == position) {
             // check if in ghost phase
             if (body[i].ghost_time > 0) break;
+            if (body[i].shield_charge) {
+                body[i].shield_charge = false;
+                body[i].ghost_time = Soldier::initial_ghost_time;
+                break;
+            }
             body[i].hp -= damage;
             body[i].ghost_time = Soldier::initial_ghost_time;
             double current_time = GetTime();

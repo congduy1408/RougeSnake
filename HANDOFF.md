@@ -62,7 +62,7 @@ The HUD shows follower count/capacity and Basic/Veteran/Archer totals, excluding
 | Squad list | Up/Down selects member; Enter opens actions |
 | Follower actions | Up/Down chooses Detach/Heal; Enter heals or selects Detach, then Enter confirms |
 | Back / resume | Esc cancels confirmation, backs out of actions, then resumes; Tab resumes directly |
-| Development shortcuts | K/L/O adds Basic/Veteran/Archer while playing; I damages node index 2; J spawns a filler item pickup |
+| Development shortcuts | K/L/O adds Basic/Veteran/Archer while playing; I damages node index 2; J spawns a filler item pickup; U spawns Dawn Veil; P spawns Fireball |
 
 The window close button still exits. Automatic raylib Esc-to-exit is disabled so Esc can operate the pause menu.
 
@@ -93,6 +93,12 @@ The window close button still exits. Automatic raylib Esc-to-exit is disabled so
 - Next: playtest filler UI, then design a small set of actual leader-usable combat items before enemy redesign.
 
 ## Build and run
+
+### Latest spell/aura decisions (2026-11-13)
+
+Air Bounce, Void Echo, Rift Mark, Blood Oath, and Bone Mantle are removed from Rouge Snake's planned roster. Remaining spells: Fireball, Water Wall, Earth Pillar, Lightning Chain, Shadow Blink, Ice Spike, Grave Bloom. Remaining auras: Saint's Halo, Dawn Veil, Grave Shade, Hollow Night.
+
+Auras now have NO timed expiry or remnants. They are passive while carried and disappear permanently when dropped/replaced, losing both effect and cipher credit. Fresh aura ground pickups remain collectible. Identical effects do not stack; multiple copies still occupy slots and contribute separate letters. Dawn Veil is implemented: one shard heals 2 HP instead of 1, capped at maximum, on selected leader/follower. Removing the last copy immediately returns healing to 1 HP. U spawns a safe-ground Dawn Veil for testing (also in remote-play development buttons). Other auras/spells remain unimplemented. Release/Debug builds and persistent aura/filler/gameplay tests passed; visual verification is pending. See tests/aura_items_test.cpp and tests/aura_gameplay_test.cpp. Next: playtest then design Fireball.
 
 ### Separate native remote-play companion
 
@@ -134,7 +140,7 @@ Objects are isolated by OS and build mode under `obj/`. Automatic header depende
 
 ## Documentation drift
 
-`GAME_DESIGN.md` is the long-form design reference, but still contains the old Archer rule, capacity 8, and an obsolete missing-header-dependencies backlog item. It lacks the recent UI and voluntary detach details. Discuss conflicts before changing behavior; update the design document only with user approval per AGENTS.md.
+`GAME_DESIGN.md` was reconciled on 2026-11-14 with current source and agreed decisions: targeting, capacity, menus/HUD, detachment, healing, inventory/fillers, all current spell/aura behavior, controls, builds/remote play and verification boundaries. Prefer its current sections over older incremental notes in this handoff; historical tests remain historical. Recheck source before changing behavior and follow AGENTS.md.
 
 `RougeSnake_Implementation_Tracker.xlsx` was revised for squad gameplay earlier in this chat. Later menus, targeting, HUD, and capacity changes have not been reconciled into it. Do not use its older task statuses as proof that these newer changes are missing.
 
@@ -153,3 +159,25 @@ Use Git to transfer source/assets/docs. Build outputs remain local. Signing into
 Suggested opening prompt on the other device:
 
 > Continue Rouge Snake. Read Untitled/AGENTS.md, Untitled/HANDOFF.md, and Untitled/GAME_DESIGN.md. Inspect current source and Git status. Follow the design-first workflow. Healing Shards are implemented; review the handoff and discuss the next milestone before changing gameplay.
+
+## Fireball (implemented 2026-11-14)
+
+- Leader spell item: Fireball, letter F. P spawns a safe-ground pickup for testing, including via the remote-play development controls. Collect, select with A/D or the Items menu, and press Space during gameplay.
+- Initial tunable defaults: damage 1, speed 20 grid cells/second, range 8 cells, per-instance cooldown 2 seconds. No explosion, piercing, burning, or mana.
+- Launches from the leader's current cell, travels ahead along current movement (not queued movement or enemy targeting), with fixed direction after launch. Orange/yellow fireball visual is distinct from Archer arrows.
+- Reuses existing crossed-cell checks: first living enemy absorbs the hit; walls/empty/outside cells block; gaps are crossed. Attached/waiting soldiers are not targets. Range expiry and successful room transition clear the projectile.
+- Carried cooldowns continue while another item is selected, persist across room changes, and pause with the menu. Restart clears inventory and projectiles.
+- Release/Debug builds and persistent tests/fireball_gameplay_test.cpp passed, including four directions, cooldown gates/independence, first-hit collision, wall/gap behavior, range, pause, transition/restart and Arrow visual default. Existing aura gameplay tests also passed. Visual playtest remains pending.
+- Next: playtest/tune Fireball before choosing the next spell or redesigning enemies.
+
+## Expanded spell/aura batch (latest source behavior)
+
+Saint's Halo is now a spell (S, cooldown 180s), not an aura. Shadow Blink is removed. All seven spells and three remaining auras are implemented. The current table in GAME_DESIGN.md supersedes earlier partial-roster/design-pending notes above.
+
+- P cycles Fireball, Saint's Halo, Ice Spike, Lightning Chain, Water Wall, Earth Pillar, Grave Bloom ground pickups. U cycles Dawn Veil, Grave Shade, Hollow Night. Collect/select/use normally. Remote-play button labels now say Cycle spells / Cycle auras; key mapping is unchanged.
+- Halo charges belong to each attached soldier, including leader, never stack, survive detachment/rescue/room changes, and are consumed before HP on an unprotected attack. New recruits don't inherit them.
+- Lightning's six-cell detection square chooses nearest first, then up to two three-cell jumps without repeat victims. Water Wall is three cells across, five ahead, lasts five seconds. Pillar targets nearest within six cells and lasts three seconds. Both block enemy movement and all projectiles but let the squad through.
+- Grave Bloom is one stationary attacker within three cells of the squad, lasts twenty seconds, strikes nearest within four cells for one damage each second. This prototype directly attacks; no skeleton summons or autonomous allied actors were added.
+- Ice Spike slows only movement (50%, two seconds). Grave Shade reduces attached-target detection by one, minimum one, so the basic enemy's current radius is unchanged. Hollow Night adds one damage for attackers at one HP; Grave Bloom has no HP and stays at base damage.
+- Target/placement failures refund the attempted cooldown. World spell effects clear on successful room changes/restart, not early failed transition. All gameplay timers pause in the menu.
+- Added src/spell.cpp and tests/spell_catalog_gameplay_test.cpp, tests/enemy_spell_effects_test.cpp. Six standalone executables passed: filler, aura item, aura gameplay, fireball gameplay, expanded spell gameplay, enemy-effect timing/detection. Release/Debug builds passed. Visual verification is pending. Next: playtest these effects and tune before enemy redesign.
