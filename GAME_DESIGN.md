@@ -1,6 +1,6 @@
 # Rouge Snake — Game Design and Implementation
 
-Updated: 2026-11-14 (Asia/Ho_Chi_Minh). This is the current squad-game reference. Implemented behavior, prototype tuning, future plans, and historical verification are distinguished below. Source code remains authoritative for implementation details.
+Updated: 2026-11-15 (Asia/Ho_Chi_Minh). This is the current squad-game reference. Implemented behavior, prototype tuning, future plans, and historical verification are distinguished below. Source code remains authoritative for implementation details.
 
 We are continuing development of Rouge Snake.
 
@@ -118,6 +118,15 @@ This is the Rouge Snake squad route. It adds an encounter after the normal final
 - Head HP reaching zero or below ends the run. Keep the head node in the body; do not remove it through tail cutting.
 - Snake reports its death through `IsDead()`. Game switches to `GAMEOVER` and stops gameplay processing when death is detected.
 - Damage is caused by explicit attacks. Contact or movement overlap alone damages neither the Snake nor enemies. Terrain hazards remain lethal independently of node HP or attack protection.
+
+## Grave Zombie (implemented named baseline)
+
+- EnemyType::GraveZombie identifies the existing basic enemy without a new subclass/manager. GetName() returns Grave Zombie. Existing Enemy(position) callers default to this type.
+- Both legacy `enemy` and explicit `grave_zombie` map object markers spawn this type. Existing maps/editor output stay compatible; the editor does not yet provide a dedicated built-in Zombie brush. Unknown object markers are not automatically enemies.
+- Balance/behavior are preserved: 3 HP, 0.1-second random movement attempts on safe terrain, radius-1 square detection including diagonals, attached-before-waiting target priority, own-cell exclusion, 0.5-second Prepare, one 1-damage strike, 0.08-second Attack display and 1-second recovery. No contact damage, chasing, grave-hole respawn, or loot was added.
+- Muted green square is temporary Zombie art. HP labels and yellow warning/red strike indicators remain. Existing slowing, aura targeting reduction, spell damage and soldier combat still apply.
+- Release/Debug builds and grave_zombie_test.cpp passed for identity, 3 HP, locked target/phase timing, detached targets, no contact damage, terrain safety and both marker names. Four existing enemy/spell/aura gameplay regression executables also passed. Visual verification remains pending.
+- Next: design Skeleton Archer targeting/telegraph/projectile rules before implementing it. Continuous/free projectile movement is deferred; squad movement remains grid-based.
 
 ## Agreed enemy behavior and attack architecture
 
@@ -387,12 +396,12 @@ Development testing: U cycles Dawn Veil, Grave Shade, Hollow Night pickups; P cy
 
 ### Future content, not implemented
 
-- Enemy types from CypherRush remain concepts: Grave Zombie, Bone Hound, Skeleton Archer, Skull Crab, Shield Skeleton, Tombstone Skeleton, Timid Ghost, Hostile Ghost, Necromancer. Guardian concepts: Old Gravekeeper Skeleton and Ancient Cult of Undead. The source currently has one generic wandering melee enemy, not this full roster.
+- Grave Zombie is implemented as the named baseline above. Other CypherRush enemy types remain concepts: Bone Hound, Skeleton Archer, Skull Crab, Shield Skeleton, Tombstone Skeleton, Timid Ghost, Hostile Ghost, Necromancer. Guardian concepts: Old Gravekeeper Skeleton and Ancient Cult of Undead. The source currently has one named Grave Zombie type, not the full roster.
 - Test Gravekeeper/simple final boss, victory/results screen, discovered-door registry, actual Boss Travel, Guardian/final seal checks, clues, enemy encyclopedia, named story NPC encounters, and true-ending unlocks are unimplemented.
 - Merchants, keys/money, reward choices/weighted item generation, full weapon redesign, save/meta progression and web distribution remain future work. Cipher matching/HUD already exist, but the full item-to-seal-to-victory run does not.
 - Recommended progression target after current combat testing: two distinct enemy types, controlled item acquisition, a small fixed-cipher run, a sealed door, simple boss, then victory. This is a suggested milestone sequence, not an implemented or fully approved content schedule.
 
-Next: playtest/tune the expanded seven-spell/three-aura roster, especially chain range, barrier placement, shield persistence, and Bloom behavior. Discuss enemy redesign and regular item reward spawning after that review.
+Next: visually check Grave Zombie and design Skeleton Archer. Spell/aura playtesting and balance tuning, plus regular item reward spawning design, remain open.
 
 ## Deferred fixes and future improvements
 

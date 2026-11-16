@@ -9,13 +9,17 @@ struct EnemyAction {
     int damage = 0;
 };
 
+enum class EnemyType { GraveZombie };
+
 class Enemy: public GameObject {
     protected:
         int hp = 3;
     public:
-        explicit Enemy(GridPosition position);
+        explicit Enemy(GridPosition position, EnemyType type = EnemyType::GraveZombie);
+        EnemyType GetType() const { return type; }
+        const char* GetName() const;
         virtual ~Enemy() = default;
-        virtual void Draw() const;\
+        virtual void Draw() const;
         void TakeDamage(int damage);
         bool IsDead() const;
         void ApplySlow(float duration);
@@ -24,6 +28,7 @@ class Enemy: public GameObject {
         virtual EnemyAction Update(const Board& board, const Snake& snake,
                                    const std::vector<Soldier>& detached_soldiers, float delta_time);
     private:
+        EnemyType type;
         float movement_interval = 0.10f;
         float movement_elapsed = 0.0f;
 

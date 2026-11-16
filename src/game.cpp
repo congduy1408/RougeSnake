@@ -208,10 +208,10 @@ void game::InitRoomObject() {
     ground_items.clear();
     enemies.clear();
     for (const auto& marker : room.GetObjectMarkers()) {
-        if (marker.name == "enemy") {
-            TraceLog(LOG_INFO, "load enemy: %s", marker.name.c_str());
-            // Create enemy at marker.position
-            enemies.push_back(std::make_unique<Enemy>(marker.position));
+        if (marker.name == "enemy" || marker.name == "grave_zombie") {
+            auto enemy = std::make_unique<Enemy>(marker.position, EnemyType::GraveZombie);
+            TraceLog(LOG_INFO, "Spawn %s from marker: %s", enemy->GetName(), marker.name.c_str());
+            enemies.push_back(std::move(enemy));
         }
         else if (marker.name == "item") {
             // Create item at marker.position

@@ -1,8 +1,15 @@
 #include "include/enemy.h"
 
-Enemy::Enemy(GridPosition position)
-    : GameObject(position)
+Enemy::Enemy(GridPosition position, EnemyType type)
+    : GameObject(position), type(type)
 {
+}
+
+const char* Enemy::GetName() const {
+    switch (type) {
+        case EnemyType::GraveZombie: return "Grave Zombie";
+    }
+    return "Unknown enemy";
 }
 
 void Enemy::Draw() const {
@@ -11,7 +18,7 @@ void Enemy::Draw() const {
     position.y * cellsize,
     cellsize,
     cellsize,
-    RED
+    Color{116, 145, 83, 255} // Grave Zombie placeholder; attacks retain warning/strike colors.
     );
     std::string hp_text = std::to_string(hp);
     DrawText(hp_text.c_str(), position.x * cellsize, position.y * cellsize - cellsize, 14, darkGreen);

@@ -181,3 +181,9 @@ Saint's Halo is now a spell (S, cooldown 180s), not an aura. Shadow Blink is rem
 - Ice Spike slows only movement (50%, two seconds). Grave Shade reduces attached-target detection by one, minimum one, so the basic enemy's current radius is unchanged. Hollow Night adds one damage for attackers at one HP; Grave Bloom has no HP and stays at base damage.
 - Target/placement failures refund the attempted cooldown. World spell effects clear on successful room changes/restart, not early failed transition. All gameplay timers pause in the menu.
 - Added src/spell.cpp and tests/spell_catalog_gameplay_test.cpp, tests/enemy_spell_effects_test.cpp. Six standalone executables passed: filler, aura item, aura gameplay, fireball gameplay, expanded spell gameplay, enemy-effect timing/detection. Release/Debug builds passed. Visual verification is pending. Next: playtest these effects and tune before enemy redesign.
+
+## Grave Zombie baseline (2026-11-15)
+
+The generic Enemy now has EnemyType::GraveZombie and GetType()/GetName(), defaulting existing constructors to Grave Zombie. `enemy` and `grave_zombie` map markers both spawn it. Stats and behavior are unchanged: 3 HP, random safe movement, adjacent/diagonal targeting, 0.5-second warning, 1 damage, 0.08-second Attack, 1-second recovery, no contact damage. Placeholder body is muted green. No loot, chasing, respawn, new enemy subclass or encyclopedia was added.
+
+Release/Debug and grave_zombie_test.cpp passed, plus four existing gameplay regressions. Visual playtesting remains pending. Next: design Skeleton Archer before implementing it. User clarified only projectiles might move freely later; squad grid movement stays and that projectile refactor is deferred.
